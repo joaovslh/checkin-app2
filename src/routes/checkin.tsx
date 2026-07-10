@@ -190,7 +190,7 @@ function CheckIn() {
             {cadastroSugestoes.length === 0 && (
               <div className="mt-4">
                 <Link
-                  to="/cadastro"
+                  to="/equipe-cadastro"
                   className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface-elevated px-4 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
                 >
                   Fazer cadastro rápido
