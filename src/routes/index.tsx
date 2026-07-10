@@ -65,8 +65,8 @@ function Portal() {
         </div>
 
         <div className="mt-10">
-          <button
-            type="button"
+          <Link
+            to="/cadastro"
             className="group flex w-full items-center gap-4 rounded-xl border border-dashed border-border bg-transparent px-5 py-4 text-left transition hover:border-foreground/40 hover:bg-surface focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           >
             <div
@@ -91,7 +91,7 @@ function Portal() {
                 Escaneie o QR da recepção para se cadastrar rapidamente.
               </p>
             </div>
-          </button>
+          </Link>
         </div>
 
         <footer className="mt-auto pt-16 text-center text-xs text-muted-foreground">
