@@ -1,28 +1,27 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { requireEquipeSession } from "../lib/auth-guard";
+import { IGREJA_ID, supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/equipe-cadastro")({
   beforeLoad: requireEquipeSession,
   component: EquipeCadastro,
 });
 
+type Sala = {
+  id: string;
+  nome: string;
+};
+
 type Crianca = {
   id: string;
   nome: string;
-  idade: string;
-  sala: string;
-  responsavel: string;
-  alergias?: string;
-  facialStatus: "ativo" | "pendente" | "sem-facial";
+  data_nascimento: string;
+  alergias: string[] | null;
+  sala_id: string | null;
+  kids_salas: { nome: string } | null;
+  kids_responsaveis: { nome: string } | null;
 };
-
-const CRIANCAS: Crianca[] = [
-  { id: "c1", nome: "Alice Ferreira", idade: "7 anos", sala: "Jardim", responsavel: "Camila Ferreira", alergias: "Amendoim", facialStatus: "ativo" },
-  { id: "c2", nome: "Davi Souza", idade: "5 anos", sala: "Maternal", responsavel: "Rafael Souza", facialStatus: "ativo" },
-  { id: "c3", nome: "Sarah Lima", idade: "8 anos", sala: "Kids", responsavel: "Patrícia Lima", alergias: "Leite, Ovo", facialStatus: "sem-facial" },
-  { id: "c4", nome: "Noah Costa", idade: "10 anos", sala: "Pré-adolescentes", responsavel: "Bruno Costa", facialStatus: "pendente" },
-];
 
 function initials(nome: string) {
   const parts = nome.trim().split(/\s+/);
@@ -31,13 +30,174 @@ function initials(nome: string) {
   return (first + last).toUpperCase();
 }
 
+function idadeEmAnos(dataNascimento: string): string {
+  const nascimento = new Date(dataNascimento);
+  const hoje = new Date();
+  let anos = hoje.getFullYear() - nascimento.getFullYear();
+  const aindaNaoFezAniversario =
+    hoje.getMonth() < nascimento.getMonth() ||
+    (hoje.getMonth() === nascimento.getMonth() && hoje.getDate() < nascimento.getDate());
+  if (aindaNaoFezAniversario) anos -= 1;
+  return `${anos} ano${anos === 1 ? "" : "s"}`;
+}
+
 function EquipeCadastro() {
+  const [salas, setSalas] = useState<Sala[]>([]);
+  const [criancas, setCriancas] = useState<Crianca[]>([]);
+  const [carregando, setCarregando] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
-  const [autorizados, setAutorizados] = useState<string[]>([""]);
+  const [autorizados, setAutorizados] = useState([{ nome: "", parentesco: "" }]);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  // campos do formulário
+  const [nomeCrianca, setNomeCrianca] = useState("");
+  const [dataNascimento, setDataNascimento] = useState("");
+  const [salaId, setSalaId] = useState("");
+  const [nomeResponsavel, setNomeResponsavel] = useState("");
+  const [telefoneResponsavel, setTelefoneResponsavel] = useState("");
+  const [alergias, setAlergias] = useState("");
+  const [observacoes, setObservacoes] = useState("");
+
+  async function carregarDados() {
+    setCarregando(true);
+
+    const [{ data: salasData }, { data: criancasData, error: criancasError }] = await Promise.all([
+      supabase.from("kids_salas").select("id, nome").order("faixa_etaria_min", { ascending: true }),
+      supabase
+        .from("kids_criancas")
+        .select("id, nome, data_nascimento, alergias, sala_id, kids_salas(nome), kids_responsaveis(nome)")
+        .order("nome", { ascending: true }),
+    ]);
+
+    if (salasData) {
+      setSalas(salasData);
+      if (salasData.length > 0) setSalaId((prev) => prev || salasData[0].id);
+    }
+    if (criancasError) {
+      setErro("Não foi possível carregar as crianças cadastradas.");
+    } else if (criancasData) {
+      setCriancas(criancasData as unknown as Crianca[]);
+    }
+
+    setCarregando(false);
+  }
+
+  useEffect(() => {
+    carregarDados();
+  }, []);
 
   function adicionarAutorizado() {
     if (autorizados.length >= 3) return;
-    setAutorizados((prev) => [...prev, ""]);
+    setAutorizados((prev) => [...prev, { nome: "", parentesco: "" }]);
+  }
+
+  function atualizarAutorizado(index: number, campo: "nome" | "parentesco", valor: string) {
+    setAutorizados((prev) =>
+      prev.map((a, i) => (i === index ? { ...a, [campo]: valor } : a)),
+    );
+  }
+
+  function limparFormulario() {
+    setNomeCrianca("");
+    setDataNascimento("");
+    setNomeResponsavel("");
+    setTelefoneResponsavel("");
+    setAlergias("");
+    setObservacoes("");
+    setAutorizados([{ nome: "", parentesco: "" }]);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErro(null);
+    setSalvando(true);
+
+    try {
+      const telefoneLimpo = `+55${telefoneResponsavel.replace(/\D/g, "")}`;
+
+      // 1. Reaproveita o responsável se já existir (mesmo telefone), senão cria
+      const { data: responsavelExistente } = await supabase
+        .from("kids_responsaveis")
+        .select("id")
+        .eq("igreja_id", IGREJA_ID)
+        .eq("telefone", telefoneLimpo)
+        .maybeSingle();
+
+      let responsavelId: string;
+
+      if (responsavelExistente) {
+        responsavelId = responsavelExistente.id;
+      } else {
+        const { data: novoResponsavel, error: respError } = await supabase
+          .from("kids_responsaveis")
+          .insert({
+            igreja_id: IGREJA_ID,
+            nome: nomeResponsavel,
+            telefone: telefoneLimpo,
+          })
+          .select("id")
+          .single();
+
+        if (respError || !novoResponsavel) throw new Error(respError?.message ?? "Erro ao criar responsável");
+        responsavelId = novoResponsavel.id;
+      }
+
+      // 2. Cria a criança
+      const alergiasArray = alergias
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean);
+
+      const { data: novaCrianca, error: criancaError } = await supabase
+        .from("kids_criancas")
+        .insert({
+          igreja_id: IGREJA_ID,
+          responsavel_principal_id: responsavelId,
+          sala_id: salaId || null,
+          nome: nomeCrianca,
+          data_nascimento: dataNascimento,
+          alergias: alergiasArray,
+          observacoes: observacoes || null,
+        })
+        .select("id")
+        .single();
+
+      if (criancaError || !novaCrianca) throw new Error(criancaError?.message ?? "Erro ao cadastrar criança");
+
+      // 3. Autorizações extras (só as preenchidas)
+      const autorizacoesPreenchidas = autorizados.filter((a) => a.nome.trim());
+      if (autorizacoesPreenchidas.length > 0) {
+        const { error: autError } = await supabase.from("kids_autorizacoes_retirada").insert(
+          autorizacoesPreenchidas.map((a) => ({
+            igreja_id: IGREJA_ID,
+            crianca_id: novaCrianca.id,
+            nome: a.nome,
+            parentesco: a.parentesco || null,
+          })),
+        );
+        if (autError) throw new Error(autError.message);
+      }
+
+      // 4. Consentimento de termos gerais
+      await supabase.from("kids_consentimentos").insert({
+        igreja_id: IGREJA_ID,
+        crianca_id: novaCrianca.id,
+        responsavel_id: responsavelId,
+        tipo: "termos_gerais",
+        aceito: true,
+        aceito_em: new Date().toISOString(),
+        versao_termo: "v1",
+      });
+
+      limparFormulario();
+      setMostrarForm(false);
+      await carregarDados();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao salvar cadastro.");
+    } finally {
+      setSalvando(false);
+    }
   }
 
   return (
@@ -79,6 +239,12 @@ function EquipeCadastro() {
       </header>
 
       <main className="mx-auto w-full max-w-5xl px-6 py-8 lg:px-10 lg:py-10">
+        {erro && (
+          <div className="mb-6 rounded-md border border-emergency-border bg-emergency-surface px-4 py-3 text-sm text-foreground">
+            {erro}
+          </div>
+        )}
+
         {mostrarForm && (
           <section className="mb-10 rounded-2xl border border-border bg-surface-elevated p-6 shadow-[var(--shadow-card)]">
             <h2 className="text-lg font-semibold text-foreground" style={{ fontFamily: "var(--font-display)" }}>
@@ -88,25 +254,44 @@ function EquipeCadastro() {
               Cadastro feito pela equipe, presencial. O reconhecimento facial é habilitado depois, em uma fase futura.
             </p>
 
-            <form className="mt-6 space-y-5" onSubmit={(e) => e.preventDefault()}>
+            <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field label="Nome da criança">
-                  <TextInput placeholder="Ex: Laura Mendonça" />
+                  <TextInput
+                    required
+                    value={nomeCrianca}
+                    onChange={(e) => setNomeCrianca(e.target.value)}
+                    placeholder="Ex: Laura Mendonça"
+                  />
                 </Field>
                 <Field label="Data de nascimento">
-                  <TextInput type="date" />
+                  <TextInput
+                    required
+                    type="date"
+                    value={dataNascimento}
+                    onChange={(e) => setDataNascimento(e.target.value)}
+                  />
                 </Field>
                 <Field label="Sala">
-                  <select className="h-11 w-full rounded-md border border-input bg-surface-elevated px-3 text-[15px] text-foreground shadow-[var(--shadow-soft)] outline-none focus:border-ring focus:shadow-[var(--shadow-focus)]">
-                    <option>Berçário</option>
-                    <option>Maternal</option>
-                    <option>Jardim</option>
-                    <option>Kids</option>
-                    <option>Pré-adolescentes</option>
+                  <select
+                    value={salaId}
+                    onChange={(e) => setSalaId(e.target.value)}
+                    className="h-11 w-full rounded-md border border-input bg-surface-elevated px-3 text-[15px] text-foreground shadow-[var(--shadow-soft)] outline-none focus:border-ring focus:shadow-[var(--shadow-focus)]"
+                  >
+                    {salas.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nome}
+                      </option>
+                    ))}
                   </select>
                 </Field>
                 <Field label="Nome do responsável">
-                  <TextInput placeholder="Ex: Ana Mendonça" />
+                  <TextInput
+                    required
+                    value={nomeResponsavel}
+                    onChange={(e) => setNomeResponsavel(e.target.value)}
+                    placeholder="Ex: Ana Mendonça"
+                  />
                 </Field>
                 <Field label="WhatsApp do responsável">
                   <div className="flex h-11 items-stretch overflow-hidden rounded-md border border-input bg-surface-elevated shadow-[var(--shadow-soft)] focus-within:border-ring focus-within:shadow-[var(--shadow-focus)]">
@@ -115,21 +300,30 @@ function EquipeCadastro() {
                       +55
                     </div>
                     <input
+                      required
                       type="tel"
                       inputMode="numeric"
+                      value={telefoneResponsavel}
+                      onChange={(e) => setTelefoneResponsavel(e.target.value)}
                       placeholder="(11) 91234-5678"
                       className="min-w-0 flex-1 bg-transparent px-3 text-[15px] text-foreground outline-none placeholder:text-muted-foreground/70"
                     />
                   </div>
                 </Field>
                 <Field label="Alergias" aside={<span className="text-xs font-medium text-muted-foreground">Opcional</span>}>
-                  <TextInput placeholder="Ex: amendoim, lactose" />
+                  <TextInput
+                    value={alergias}
+                    onChange={(e) => setAlergias(e.target.value)}
+                    placeholder="Ex: amendoim, lactose"
+                  />
                 </Field>
               </div>
 
               <Field label="Observações" aside={<span className="text-xs font-medium text-muted-foreground">Opcional</span>}>
                 <textarea
                   rows={2}
+                  value={observacoes}
+                  onChange={(e) => setObservacoes(e.target.value)}
                   placeholder="Ex: usa óculos, não gosta de barulho alto"
                   className="w-full resize-none rounded-md border border-input bg-surface-elevated px-3 py-2.5 text-[15px] text-foreground shadow-[var(--shadow-soft)] outline-none placeholder:text-muted-foreground/70 focus:border-ring focus:shadow-[var(--shadow-focus)]"
                 />
@@ -141,10 +335,18 @@ function EquipeCadastro() {
                   <span className="text-xs font-medium text-muted-foreground">Até 3, além do responsável</span>
                 </div>
                 <div className="space-y-2.5">
-                  {autorizados.map((_, i) => (
+                  {autorizados.map((a, i) => (
                     <div key={i} className="grid gap-2.5 sm:grid-cols-2">
-                      <TextInput placeholder="Nome" />
-                      <TextInput placeholder="Parentesco (ex: avó, tio)" />
+                      <TextInput
+                        value={a.nome}
+                        onChange={(e) => atualizarAutorizado(i, "nome", e.target.value)}
+                        placeholder="Nome"
+                      />
+                      <TextInput
+                        value={a.parentesco}
+                        onChange={(e) => atualizarAutorizado(i, "parentesco", e.target.value)}
+                        placeholder="Parentesco (ex: avó, tio)"
+                      />
                     </div>
                   ))}
                 </div>
@@ -162,9 +364,10 @@ function EquipeCadastro() {
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground shadow-[var(--shadow-soft)] transition hover:bg-primary/92 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                  disabled={salvando}
+                  className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground shadow-[var(--shadow-soft)] transition hover:bg-primary/92 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
                 >
-                  Salvar cadastro
+                  {salvando ? "Salvando..." : "Salvar cadastro"}
                 </button>
                 <button
                   type="button"
@@ -182,65 +385,52 @@ function EquipeCadastro() {
           <h2 className="text-xl font-semibold text-foreground" style={{ fontFamily: "var(--font-display)" }}>
             Crianças cadastradas
           </h2>
-          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-            {CRIANCAS.map((c) => (
-              <li
-                key={c.id}
-                className="rounded-2xl border border-border bg-surface-elevated p-4 shadow-[var(--shadow-card)]"
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    aria-hidden
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-primary"
-                  >
-                    {initials(c.nome)}
+
+          {carregando ? (
+            <p className="mt-4 text-sm text-muted-foreground">Carregando...</p>
+          ) : criancas.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Nenhuma criança cadastrada ainda. Clique em "Novo cadastro" para começar.
+            </p>
+          ) : (
+            <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+              {criancas.map((c) => (
+                <li
+                  key={c.id}
+                  className="rounded-2xl border border-border bg-surface-elevated p-4 shadow-[var(--shadow-card)]"
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      aria-hidden
+                      className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-primary"
+                    >
+                      {initials(c.nome)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-foreground">{c.nome}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {c.kids_salas?.nome ?? "Sem sala"} · {idadeEmAnos(c.data_nascimento)} · resp: {c.kids_responsaveis?.nome ?? "—"}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">{c.nome}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {c.sala} · {c.idade} · resp: {c.responsavel}
-                    </p>
+                  {c.alergias && c.alergias.length > 0 && (
+                    <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emergency-border bg-emergency-surface px-2 py-0.5 text-[11px] font-medium text-foreground">
+                      Alergia: {c.alergias.join(", ")}
+                    </span>
+                  )}
+                  <div className="mt-3">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <span className="h-1.5 w-1.5 rounded-full bg-foreground/20" />
+                      Reconhecimento facial — fase futura
+                    </span>
                   </div>
-                </div>
-                {c.alergias && (
-                  <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emergency-border bg-emergency-surface px-2 py-0.5 text-[11px] font-medium text-foreground">
-                    Alergia: {c.alergias}
-                  </span>
-                )}
-                <div className="mt-3">
-                  <FacialBadge status={c.facialStatus} />
-                </div>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </main>
     </div>
-  );
-}
-
-function FacialBadge({ status }: { status: Crianca["facialStatus"] }) {
-  if (status === "ativo") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-        Facial ativo
-      </span>
-    );
-  }
-  if (status === "pendente") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <span className="h-1.5 w-1.5 rounded-full bg-foreground/30" />
-        Facial pendente — aguardando 1ª retirada
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-      <span className="h-1.5 w-1.5 rounded-full bg-foreground/20" />
-      Sem facial — apenas manual
-    </span>
   );
 }
 
