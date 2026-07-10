@@ -72,6 +72,8 @@ function EquipeCadastro() {
   const [carregandoAutorizacoes, setCarregandoAutorizacoes] = useState(false);
   const [autorizados, setAutorizados] = useState([{ nome: "", parentesco: "" }]);
   const [salvando, setSalvando] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   // campos do formulário
@@ -144,6 +146,7 @@ function EquipeCadastro() {
     setObservacoes("");
     setAutorizados([{ nome: "", parentesco: "" }]);
     setEditandoId(null);
+    setConfirmandoExclusao(false);
   }
 
   function abrirNovo() {
@@ -314,6 +317,29 @@ function EquipeCadastro() {
     } finally {
       setSalvando(false);
     }
+  }
+
+  async function excluirCadastro() {
+    if (!editandoId) return;
+    setErro(null);
+    setExcluindo(true);
+
+    // A exclusão da criança já remove em cascata (definido no schema):
+    // autorizações de retirada, consentimentos, check-ins, chamadas de
+    // emergência e o vetor facial (se existir). O responsável NÃO é
+    // apagado, pois pode ter outros filhos vinculados.
+    const { error } = await supabase.from("kids_criancas").delete().eq("id", editandoId);
+
+    if (error) {
+      setErro("Não foi possível excluir o cadastro. Tente novamente.");
+      setExcluindo(false);
+      return;
+    }
+
+    limparFormulario();
+    setMostrarForm(false);
+    setExcluindo(false);
+    await carregarDados();
   }
 
   return (
@@ -490,7 +516,7 @@ function EquipeCadastro() {
                 )}
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
                   type="submit"
                   disabled={salvando || carregandoAutorizacoes}
@@ -508,7 +534,42 @@ function EquipeCadastro() {
                 >
                   Cancelar
                 </button>
+
+                {editandoId && !confirmandoExclusao && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmandoExclusao(true)}
+                    className="ml-auto text-sm font-medium text-muted-foreground underline underline-offset-4 decoration-border hover:text-emergency hover:decoration-emergency"
+                  >
+                    Excluir cadastro
+                  </button>
+                )}
               </div>
+
+              {editandoId && confirmandoExclusao && (
+                <div className="rounded-lg border border-emergency-border bg-emergency-surface p-4">
+                  <p className="text-sm font-medium text-foreground">
+                    Excluir {nomeCrianca}? Isso apaga também o histórico de check-ins e chamadas de emergência dela. Essa ação não pode ser desfeita.
+                  </p>
+                  <div className="mt-3 flex gap-3">
+                    <button
+                      type="button"
+                      disabled={excluindo}
+                      onClick={excluirCadastro}
+                      className="inline-flex h-10 items-center justify-center rounded-md bg-emergency px-4 text-sm font-semibold text-emergency-foreground shadow-[var(--shadow-soft)] transition hover:opacity-92 disabled:opacity-50"
+                    >
+                      {excluindo ? "Excluindo..." : "Sim, excluir definitivamente"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmandoExclusao(false)}
+                      className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-foreground transition hover:bg-secondary"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
             </form>
           </section>
         )}
