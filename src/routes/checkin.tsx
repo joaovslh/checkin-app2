@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { requireEquipeSession } from "../lib/auth-guard";
+import { IGREJA_ID, supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/checkin")({
   beforeLoad: requireEquipeSession,
@@ -8,34 +9,22 @@ export const Route = createFileRoute("/checkin")({
 });
 
 type Presente = {
-  id: string;
+  checkinId: string;
+  criancaId: string;
   nome: string;
   sala: string;
   entrada: string;
-  alergias?: string;
+  alergias: string[] | null;
 };
 
 type Cadastrada = {
   id: string;
   nome: string;
   sala: string;
+  salaId: string | null;
   responsavel: string;
-  alergias?: string;
+  alergias: string[] | null;
 };
-
-const PRESENTES_INICIAIS: Presente[] = [
-  { id: "p1", nome: "Alice Ribeiro Costa", sala: "Sala Girassol · 4-5 anos", entrada: "09:04", alergias: "Amendoim" },
-  { id: "p2", nome: "Bento Almeida", sala: "Sala Sementinha · 2-3 anos", entrada: "09:07" },
-  { id: "p3", nome: "Clara Nunes", sala: "Sala Girassol · 4-5 anos", entrada: "09:11", alergias: "Lactose" },
-  { id: "p4", nome: "Davi Monteiro", sala: "Sala Oliveira · 6-8 anos", entrada: "09:15" },
-];
-
-const CADASTRO_GERAL: Cadastrada[] = [
-  { id: "c1", nome: "Eloá Ferreira", sala: "Sala Sementinha · 2-3 anos", responsavel: "Marina Ferreira", alergias: "Ovo" },
-  { id: "c2", nome: "Eduardo Lima", sala: "Sala Oliveira · 6-8 anos", responsavel: "Rafael Lima" },
-  { id: "c3", nome: "Elisa Souza", sala: "Sala Girassol · 4-5 anos", responsavel: "Patrícia Souza" },
-  { id: "c4", nome: "Enzo Rocha", sala: "Sala Oliveira · 6-8 anos", responsavel: "Tiago Rocha", alergias: "Glúten" },
-];
 
 function initials(nome: string) {
   const parts = nome.trim().split(/\s+/);
@@ -44,9 +33,71 @@ function initials(nome: string) {
   return (first + last).toUpperCase();
 }
 
+function horaFormatada(iso: string) {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function gerarCodigoPareado() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
 function CheckIn() {
   const [query, setQuery] = useState("");
-  const [presentes, setPresentes] = useState<Presente[]>(PRESENTES_INICIAIS);
+  const [presentes, setPresentes] = useState<Presente[]>([]);
+  const [cadastroGeral, setCadastroGeral] = useState<Cadastrada[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [processando, setProcessando] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function carregarDados() {
+    setCarregando(true);
+    setErro(null);
+
+    const [presentesRes, criancasRes] = await Promise.all([
+      supabase
+        .from("kids_checkins")
+        .select("id, entrada_em, crianca_id, kids_criancas(nome, alergias, kids_salas(nome))")
+        .is("saida_em", null)
+        .order("entrada_em", { ascending: false }),
+      supabase
+        .from("kids_criancas")
+        .select("id, nome, alergias, sala_id, kids_salas(nome), kids_responsaveis(nome)")
+        .order("nome", { ascending: true }),
+    ]);
+
+    if (presentesRes.error || criancasRes.error) {
+      setErro("Não foi possível carregar os dados de check-in.");
+      setCarregando(false);
+      return;
+    }
+
+    const presentesFormatados: Presente[] = (presentesRes.data ?? []).map((c: any) => ({
+      checkinId: c.id,
+      criancaId: c.crianca_id,
+      nome: c.kids_criancas?.nome ?? "—",
+      sala: c.kids_criancas?.kids_salas?.nome ?? "Sem sala",
+      entrada: horaFormatada(c.entrada_em),
+      alergias: c.kids_criancas?.alergias ?? null,
+    }));
+
+    const cadastroFormatado: Cadastrada[] = (criancasRes.data ?? []).map((c: any) => ({
+      id: c.id,
+      nome: c.nome,
+      sala: c.kids_salas?.nome ?? "Sem sala",
+      salaId: c.sala_id,
+      responsavel: c.kids_responsaveis?.nome ?? "—",
+      alergias: c.alergias,
+    }));
+
+    setPresentes(presentesFormatados);
+    setCadastroGeral(cadastroFormatado);
+    setCarregando(false);
+  }
+
+  useEffect(() => {
+    carregarDados();
+  }, []);
 
   const q = query.trim().toLowerCase();
 
@@ -55,32 +106,53 @@ function CheckIn() {
     return presentes.filter((p) => p.nome.toLowerCase().includes(q));
   }, [q, presentes]);
 
-  const idsPresentes = new Set(presentes.map((p) => p.nome.toLowerCase()));
+  const idsPresentes = new Set(presentes.map((p) => p.criancaId));
 
   const cadastroSugestoes = useMemo(() => {
     if (!q) return [];
-    return CADASTRO_GERAL.filter(
-      (c) => c.nome.toLowerCase().includes(q) && !idsPresentes.has(c.nome.toLowerCase()),
+    return cadastroGeral.filter(
+      (c) => c.nome.toLowerCase().includes(q) && !idsPresentes.has(c.id),
     );
-  }, [q, presentes]);
+  }, [q, cadastroGeral, presentes]);
 
   const nadaEncontrado = q.length > 0 && presentesFiltrados.length === 0;
 
-  function agora() {
-    const d = new Date();
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  async function fazerCheckin(c: Cadastrada) {
+    setProcessando(c.id);
+    setErro(null);
+
+    const { error } = await supabase.from("kids_checkins").insert({
+      igreja_id: IGREJA_ID,
+      crianca_id: c.id,
+      sala_id: c.salaId,
+      codigo_pareado: gerarCodigoPareado(),
+      metodo_entrada: "manual",
+    });
+
+    if (error) {
+      setErro("Não foi possível fazer o check-in. Tente novamente.");
+    } else {
+      setQuery("");
+      await carregarDados();
+    }
+    setProcessando(null);
   }
 
-  function fazerCheckin(c: Cadastrada) {
-    setPresentes((prev) => [
-      { id: c.id, nome: c.nome, sala: c.sala, entrada: agora(), alergias: c.alergias },
-      ...prev,
-    ]);
-    setQuery("");
-  }
+  async function fazerCheckout(checkinId: string) {
+    setProcessando(checkinId);
+    setErro(null);
 
-  function fazerCheckout(id: string) {
-    setPresentes((prev) => prev.filter((p) => p.id !== id));
+    const { error } = await supabase
+      .from("kids_checkins")
+      .update({ saida_em: new Date().toISOString() })
+      .eq("id", checkinId);
+
+    if (error) {
+      setErro("Não foi possível fazer o check-out. Tente novamente.");
+    } else {
+      await carregarDados();
+    }
+    setProcessando(null);
   }
 
   return (
@@ -109,16 +181,19 @@ function CheckIn() {
           </div>
           <div className="ml-auto hidden text-right sm:block">
             <p className="text-sm font-medium text-foreground">
-              {presentes.length} presentes agora
-            </p>
-            <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-              Domingo · Culto das 10h
+              {presentes.length} presente{presentes.length === 1 ? "" : "s"} agora
             </p>
           </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-5xl px-6 py-8 lg:px-10 lg:py-10">
+        {erro && (
+          <div className="mb-6 rounded-md border border-emergency-border bg-emergency-surface px-4 py-3 text-sm text-foreground">
+            {erro}
+          </div>
+        )}
+
         <div className="relative">
           <svg
             aria-hidden
@@ -145,7 +220,9 @@ function CheckIn() {
           O reconhecimento facial chega em uma fase futura. Por enquanto, busque pelo nome.
         </p>
 
-        {nadaEncontrado && (
+        {carregando && <p className="mt-8 text-sm text-muted-foreground">Carregando...</p>}
+
+        {!carregando && nadaEncontrado && (
           <section className="mt-8">
             <div className="rounded-xl border border-dashed border-border bg-surface p-5">
               <p className="text-sm font-medium text-foreground">
@@ -171,14 +248,15 @@ function CheckIn() {
                       <p className="truncate text-sm text-muted-foreground">
                         {c.sala} · Responsável: {c.responsavel}
                       </p>
-                      {c.alergias && <AlergiaTag texto={c.alergias} />}
+                      {c.alergias && c.alergias.length > 0 && <AlergiaTag texto={c.alergias.join(", ")} />}
                     </div>
                     <button
                       type="button"
+                      disabled={processando === c.id}
                       onClick={() => fazerCheckin(c)}
-                      className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition hover:opacity-95 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                      className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition hover:opacity-95 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
                     >
-                      Confirmar entrada
+                      {processando === c.id ? "Confirmando..." : "Confirmar entrada"}
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M5 12h14" />
                         <path d="M13 6l6 6-6 6" />
@@ -215,7 +293,7 @@ function CheckIn() {
             </span>
           </div>
 
-          {presentesFiltrados.length === 0 && !nadaEncontrado && (
+          {!carregando && presentesFiltrados.length === 0 && !nadaEncontrado && (
             <p className="mt-4 text-sm text-muted-foreground">
               Nenhuma criança fez check-in ainda.
             </p>
@@ -224,7 +302,7 @@ function CheckIn() {
           <ul className="mt-4 space-y-3">
             {presentesFiltrados.map((p) => (
               <li
-                key={p.id}
+                key={p.checkinId}
                 className="flex items-center gap-4 rounded-2xl border border-border bg-surface-elevated p-4 shadow-[var(--shadow-card)]"
               >
                 <Avatar nome={p.nome} />
@@ -233,14 +311,15 @@ function CheckIn() {
                   <p className="truncate text-sm text-muted-foreground">
                     {p.sala} · Entrada às {p.entrada}
                   </p>
-                  {p.alergias && <AlergiaTag texto={p.alergias} />}
+                  {p.alergias && p.alergias.length > 0 && <AlergiaTag texto={p.alergias.join(", ")} />}
                 </div>
                 <button
                   type="button"
-                  onClick={() => fazerCheckout(p.id)}
-                  className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                  disabled={processando === p.checkinId}
+                  onClick={() => fazerCheckout(p.checkinId)}
+                  className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
                 >
-                  Check-out
+                  {processando === p.checkinId ? "..." : "Check-out"}
                 </button>
               </li>
             ))}
