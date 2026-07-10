@@ -29,6 +29,7 @@ function Painel() {
           <HubCard
             title="Check-in"
             description="Registrar entrada e saída das crianças."
+            to="/checkin"
             icon={
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 7V5a2 2 0 0 1 2-2h2" />

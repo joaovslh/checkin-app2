@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResponsavelRouteImport } from './routes/responsavel'
 import { Route as PainelRouteImport } from './routes/painel'
 import { Route as EquipeRouteImport } from './routes/equipe'
+import { Route as CheckinRouteImport } from './routes/checkin'
 import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -30,6 +31,11 @@ const EquipeRoute = EquipeRouteImport.update({
   path: '/equipe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CheckinRoute = CheckinRouteImport.update({
+  id: '/checkin',
+  path: '/checkin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CadastroRoute = CadastroRouteImport.update({
   id: '/cadastro',
   path: '/cadastro',
@@ -44,6 +50,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
+  '/checkin': typeof CheckinRoute
   '/equipe': typeof EquipeRoute
   '/painel': typeof PainelRoute
   '/responsavel': typeof ResponsavelRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
+  '/checkin': typeof CheckinRoute
   '/equipe': typeof EquipeRoute
   '/painel': typeof PainelRoute
   '/responsavel': typeof ResponsavelRoute
@@ -59,21 +67,36 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
+  '/checkin': typeof CheckinRoute
   '/equipe': typeof EquipeRoute
   '/painel': typeof PainelRoute
   '/responsavel': typeof ResponsavelRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cadastro' | '/equipe' | '/painel' | '/responsavel'
+  fullPaths:
+    | '/'
+    | '/cadastro'
+    | '/checkin'
+    | '/equipe'
+    | '/painel'
+    | '/responsavel'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cadastro' | '/equipe' | '/painel' | '/responsavel'
-  id: '__root__' | '/' | '/cadastro' | '/equipe' | '/painel' | '/responsavel'
+  to: '/' | '/cadastro' | '/checkin' | '/equipe' | '/painel' | '/responsavel'
+  id:
+    | '__root__'
+    | '/'
+    | '/cadastro'
+    | '/checkin'
+    | '/equipe'
+    | '/painel'
+    | '/responsavel'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CadastroRoute: typeof CadastroRoute
+  CheckinRoute: typeof CheckinRoute
   EquipeRoute: typeof EquipeRoute
   PainelRoute: typeof PainelRoute
   ResponsavelRoute: typeof ResponsavelRoute
@@ -102,6 +125,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EquipeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/checkin': {
+      id: '/checkin'
+      path: '/checkin'
+      fullPath: '/checkin'
+      preLoaderRoute: typeof CheckinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cadastro': {
       id: '/cadastro'
       path: '/cadastro'
@@ -122,6 +152,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CadastroRoute: CadastroRoute,
+  CheckinRoute: CheckinRoute,
   EquipeRoute: EquipeRoute,
   PainelRoute: PainelRoute,
   ResponsavelRoute: ResponsavelRoute,
