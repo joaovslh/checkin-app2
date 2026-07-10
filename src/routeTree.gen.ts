@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResponsavelRouteImport } from './routes/responsavel'
+import { Route as PainelRouteImport } from './routes/painel'
 import { Route as EquipeRouteImport } from './routes/equipe'
 import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as IndexRouteImport } from './routes/index'
@@ -17,6 +18,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const ResponsavelRoute = ResponsavelRouteImport.update({
   id: '/responsavel',
   path: '/responsavel',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PainelRoute = PainelRouteImport.update({
+  id: '/painel',
+  path: '/painel',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EquipeRoute = EquipeRouteImport.update({
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
   '/equipe': typeof EquipeRoute
+  '/painel': typeof PainelRoute
   '/responsavel': typeof ResponsavelRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
   '/equipe': typeof EquipeRoute
+  '/painel': typeof PainelRoute
   '/responsavel': typeof ResponsavelRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
   '/equipe': typeof EquipeRoute
+  '/painel': typeof PainelRoute
   '/responsavel': typeof ResponsavelRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cadastro' | '/equipe' | '/responsavel'
+  fullPaths: '/' | '/cadastro' | '/equipe' | '/painel' | '/responsavel'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cadastro' | '/equipe' | '/responsavel'
-  id: '__root__' | '/' | '/cadastro' | '/equipe' | '/responsavel'
+  to: '/' | '/cadastro' | '/equipe' | '/painel' | '/responsavel'
+  id: '__root__' | '/' | '/cadastro' | '/equipe' | '/painel' | '/responsavel'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CadastroRoute: typeof CadastroRoute
   EquipeRoute: typeof EquipeRoute
+  PainelRoute: typeof PainelRoute
   ResponsavelRoute: typeof ResponsavelRoute
 }
 
@@ -76,6 +86,13 @@ declare module '@tanstack/react-router' {
       path: '/responsavel'
       fullPath: '/responsavel'
       preLoaderRoute: typeof ResponsavelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/painel': {
+      id: '/painel'
+      path: '/painel'
+      fullPath: '/painel'
+      preLoaderRoute: typeof PainelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/equipe': {
@@ -106,6 +123,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CadastroRoute: CadastroRoute,
   EquipeRoute: EquipeRoute,
+  PainelRoute: PainelRoute,
   ResponsavelRoute: ResponsavelRoute,
 }
 export const routeTree = rootRouteImport
