@@ -11,6 +11,8 @@ export const Route = createFileRoute("/equipe-cadastro")({
 type Sala = {
   id: string;
   nome: string;
+  faixa_etaria_min: number | null;
+  faixa_etaria_max: number | null;
 };
 
 type Crianca = {
@@ -41,6 +43,24 @@ function idadeEmAnos(dataNascimento: string): string {
   return `${anos} ano${anos === 1 ? "" : "s"}`;
 }
 
+function idadeEmMeses(dataNascimento: string): number {
+  const nascimento = new Date(dataNascimento);
+  const hoje = new Date();
+  let meses = (hoje.getFullYear() - nascimento.getFullYear()) * 12;
+  meses += hoje.getMonth() - nascimento.getMonth();
+  if (hoje.getDate() < nascimento.getDate()) meses -= 1;
+  return meses;
+}
+
+function sugerirSala(dataNascimento: string, salas: Sala[]): string | null {
+  if (!dataNascimento) return null;
+  const meses = idadeEmMeses(dataNascimento);
+  const sala = salas.find(
+    (s) => s.faixa_etaria_min !== null && s.faixa_etaria_max !== null && meses >= s.faixa_etaria_min && meses <= s.faixa_etaria_max,
+  );
+  return sala?.id ?? null;
+}
+
 function EquipeCadastro() {
   const [salas, setSalas] = useState<Sala[]>([]);
   const [criancas, setCriancas] = useState<Crianca[]>([]);
@@ -54,6 +74,7 @@ function EquipeCadastro() {
   const [nomeCrianca, setNomeCrianca] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
   const [salaId, setSalaId] = useState("");
+  const [salaSugeridaAutomaticamente, setSalaSugeridaAutomaticamente] = useState(false);
   const [nomeResponsavel, setNomeResponsavel] = useState("");
   const [telefoneResponsavel, setTelefoneResponsavel] = useState("");
   const [alergias, setAlergias] = useState("");
@@ -63,7 +84,7 @@ function EquipeCadastro() {
     setCarregando(true);
 
     const [{ data: salasData }, { data: criancasData, error: criancasError }] = await Promise.all([
-      supabase.from("kids_salas").select("id, nome").order("faixa_etaria_min", { ascending: true }),
+      supabase.from("kids_salas").select("id, nome, faixa_etaria_min, faixa_etaria_max").order("faixa_etaria_min", { ascending: true }),
       supabase
         .from("kids_criancas")
         .select("id, nome, data_nascimento, alergias, sala_id, kids_salas(nome), kids_responsaveis(nome)")
@@ -87,6 +108,17 @@ function EquipeCadastro() {
     carregarDados();
   }, []);
 
+  function handleDataNascimentoChange(valor: string) {
+    setDataNascimento(valor);
+    const sugerida = sugerirSala(valor, salas);
+    if (sugerida) {
+      setSalaId(sugerida);
+      setSalaSugeridaAutomaticamente(true);
+    } else {
+      setSalaSugeridaAutomaticamente(false);
+    }
+  }
+
   function adicionarAutorizado() {
     if (autorizados.length >= 3) return;
     setAutorizados((prev) => [...prev, { nome: "", parentesco: "" }]);
@@ -101,6 +133,7 @@ function EquipeCadastro() {
   function limparFormulario() {
     setNomeCrianca("");
     setDataNascimento("");
+    setSalaSugeridaAutomaticamente(false);
     setNomeResponsavel("");
     setTelefoneResponsavel("");
     setAlergias("");
@@ -269,15 +302,26 @@ function EquipeCadastro() {
                     required
                     type="date"
                     value={dataNascimento}
-                    onChange={(e) => setDataNascimento(e.target.value)}
+                    onChange={(e) => handleDataNascimentoChange(e.target.value)}
                   />
                 </Field>
-                <Field label="Sala">
+                <Field
+                  label="Sala"
+                  aside={
+                    salaSugeridaAutomaticamente ? (
+                      <span className="text-xs font-medium text-primary">Sugerida pela idade</span>
+                    ) : undefined
+                  }
+                >
                   <select
                     value={salaId}
-                    onChange={(e) => setSalaId(e.target.value)}
+                    onChange={(e) => {
+                      setSalaId(e.target.value);
+                      setSalaSugeridaAutomaticamente(false);
+                    }}
                     className="h-11 w-full rounded-md border border-input bg-surface-elevated px-3 text-[15px] text-foreground shadow-[var(--shadow-soft)] outline-none focus:border-ring focus:shadow-[var(--shadow-focus)]"
                   >
+                    <option value="">Selecione</option>
                     {salas.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.nome}
