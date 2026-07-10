@@ -45,6 +45,7 @@ function Painel() {
           <HubCard
             title="Cadastro"
             description="Cadastrar novas crianças e famílias."
+            to="/equipe-cadastro"
             icon={
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -59,6 +60,7 @@ function Painel() {
             title="Emergência"
             description="Chamar responsável durante o culto."
             critical
+            to="/emergencia"
             icon={
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 9v4" />
@@ -71,6 +73,7 @@ function Painel() {
           <HubCard
             title="Relatórios"
             description="Acompanhar presença e indicadores."
+            to="/relatorios"
             icon={
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 3v18h18" />
