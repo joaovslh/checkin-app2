@@ -1,34 +1,30 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { requireEquipeSession } from "../lib/auth-guard";
+import { IGREJA_ID, supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/emergencia")({
   beforeLoad: requireEquipeSession,
   component: Emergencia,
 });
 
-type Crianca = {
-  id: string;
+type Presente = {
+  criancaId: string;
   nome: string;
   sala: string;
-  responsavel: string;
+  salaId: string | null;
+  responsavelNome: string;
+  responsavelTelefone: string | null;
 };
 
 type Chamada = {
   id: string;
   criancaNome: string;
-  responsavel: string;
+  responsavelNome: string;
+  responsavelTelefone: string | null;
   sala: string;
-  status: "aberta" | "resolvida";
   abertaEm: string;
 };
-
-const PRESENTES: Crianca[] = [
-  { id: "p1", nome: "Alice Ribeiro Costa", sala: "Sala Girassol", responsavel: "Camila Ferreira" },
-  { id: "p2", nome: "Bento Almeida", sala: "Sala Sementinha", responsavel: "Rafael Souza" },
-  { id: "p3", nome: "Clara Nunes", sala: "Sala Girassol", responsavel: "Patrícia Lima" },
-  { id: "p4", nome: "Davi Monteiro", sala: "Sala Oliveira", responsavel: "Bruno Costa" },
-];
 
 function initials(nome: string) {
   const parts = nome.trim().split(/\s+/);
@@ -37,37 +33,115 @@ function initials(nome: string) {
   return (first + last).toUpperCase();
 }
 
-function agora() {
-  const d = new Date();
+function horaFormatada(iso: string) {
+  const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 function Emergencia() {
-  const [selecionada, setSelecionada] = useState<Crianca | null>(null);
-  const [chamadas, setChamadas] = useState<Chamada[]>([]);
+  const [presentes, setPresentes] = useState<Presente[]>([]);
+  const [chamadasAbertas, setChamadasAbertas] = useState<Chamada[]>([]);
+  const [selecionada, setSelecionada] = useState<Presente | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [acionando, setAcionando] = useState(false);
+  const [resolvendo, setResolvendo] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
 
-  const chamadasAbertas = useMemo(
-    () => chamadas.filter((c) => c.status === "aberta"),
-    [chamadas],
-  );
+  async function carregarDados() {
+    setCarregando(true);
+    setErro(null);
 
-  function acionar(c: Crianca) {
-    const nova: Chamada = {
-      id: `${c.id}-${Date.now()}`,
-      criancaNome: c.nome,
-      responsavel: c.responsavel,
-      sala: c.sala,
-      status: "aberta",
-      abertaEm: agora(),
-    };
-    setChamadas((prev) => [nova, ...prev]);
-    setSelecionada(null);
+    const [presentesRes, chamadasRes] = await Promise.all([
+      supabase
+        .from("kids_checkins")
+        .select(
+          "crianca_id, sala_id, kids_criancas(nome, kids_responsaveis(nome, telefone)), kids_salas(nome)",
+        )
+        .is("saida_em", null),
+      supabase
+        .from("kids_chamadas")
+        .select(
+          "id, aberta_em, kids_criancas(nome, kids_responsaveis(nome, telefone)), kids_salas(nome)",
+        )
+        .eq("status", "aberta")
+        .order("aberta_em", { ascending: false }),
+    ]);
+
+    if (presentesRes.error || chamadasRes.error) {
+      setErro("Não foi possível carregar os dados de emergência.");
+      setCarregando(false);
+      return;
+    }
+
+    setPresentes(
+      (presentesRes.data ?? []).map((c: any) => ({
+        criancaId: c.crianca_id,
+        nome: c.kids_criancas?.nome ?? "—",
+        sala: c.kids_salas?.nome ?? "Sem sala",
+        salaId: c.sala_id,
+        responsavelNome: c.kids_criancas?.kids_responsaveis?.nome ?? "—",
+        responsavelTelefone: c.kids_criancas?.kids_responsaveis?.telefone ?? null,
+      })),
+    );
+
+    setChamadasAbertas(
+      (chamadasRes.data ?? []).map((c: any) => ({
+        id: c.id,
+        criancaNome: c.kids_criancas?.nome ?? "—",
+        responsavelNome: c.kids_criancas?.kids_responsaveis?.nome ?? "—",
+        responsavelTelefone: c.kids_criancas?.kids_responsaveis?.telefone ?? null,
+        sala: c.kids_salas?.nome ?? "Sem sala",
+        abertaEm: horaFormatada(c.aberta_em),
+      })),
+    );
+
+    setCarregando(false);
   }
 
-  function confirmarRetirada(id: string) {
-    setChamadas((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: "resolvida" } : c)),
-    );
+  useEffect(() => {
+    carregarDados();
+  }, []);
+
+  const idsComChamadaAberta = useMemo(
+    () => new Set(chamadasAbertas.map((c) => c.criancaNome)),
+    [chamadasAbertas],
+  );
+
+  async function acionar(p: Presente) {
+    setAcionando(true);
+    setErro(null);
+
+    const { error } = await supabase.from("kids_chamadas").insert({
+      igreja_id: IGREJA_ID,
+      crianca_id: p.criancaId,
+      sala_id: p.salaId,
+      status: "aberta",
+    });
+
+    if (error) {
+      setErro("Não foi possível acionar a emergência. Tente novamente.");
+    } else {
+      setSelecionada(null);
+      await carregarDados();
+    }
+    setAcionando(false);
+  }
+
+  async function confirmarRetirada(id: string) {
+    setResolvendo(id);
+    setErro(null);
+
+    const { error } = await supabase
+      .from("kids_chamadas")
+      .update({ status: "resolvida", resolvida_em: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) {
+      setErro("Não foi possível confirmar a retirada. Tente novamente.");
+    } else {
+      await carregarDados();
+    }
+    setResolvendo(null);
   }
 
   return (
@@ -104,6 +178,12 @@ function Emergencia() {
       </header>
 
       <main className="mx-auto w-full max-w-5xl px-6 py-8 lg:px-10 lg:py-10">
+        {erro && (
+          <div className="mb-6 rounded-md border border-emergency-border bg-emergency-surface px-4 py-3 text-sm text-foreground">
+            {erro}
+          </div>
+        )}
+
         {chamadasAbertas.length > 0 && (
           <section className="mb-10 space-y-4">
             {chamadasAbertas.map((c) => (
@@ -127,24 +207,27 @@ function Emergencia() {
                       Chamado de emergência — {c.sala}
                     </p>
                     <p className="mt-1 text-sm text-foreground/80">
-                      {c.responsavel} foi acionado(a) às {c.abertaEm}. Aguardando retirada de {c.criancaNome} na porta da sala.
+                      {c.responsavelNome} foi acionado(a) às {c.abertaEm}. Aguardando retirada de {c.criancaNome} na porta da sala.
                     </p>
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <button
                     type="button"
+                    disabled={resolvendo === c.id}
                     onClick={() => confirmarRetirada(c.id)}
-                    className="inline-flex h-11 items-center gap-2 rounded-lg bg-emergency px-4 text-sm font-semibold text-emergency-foreground shadow-[var(--shadow-soft)] transition hover:opacity-92 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                    className="inline-flex h-11 items-center gap-2 rounded-lg bg-emergency px-4 text-sm font-semibold text-emergency-foreground shadow-[var(--shadow-soft)] transition hover:opacity-92 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
                   >
-                    Confirmar retirada
+                    {resolvendo === c.id ? "Confirmando..." : "Confirmar retirada"}
                   </button>
-                  <button
-                    type="button"
-                    className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface-elevated px-4 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
-                  >
-                    Ligar para responsável
-                  </button>
+                  {c.responsavelTelefone && (
+                    <a
+                      href={`tel:${c.responsavelTelefone}`}
+                      className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface-elevated px-4 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                    >
+                      Ligar para responsável
+                    </a>
+                  )}
                 </div>
               </div>
             ))}
@@ -162,34 +245,44 @@ function Emergencia() {
             A equipe da sala aciona o responsável em segundos, direto no WhatsApp — sem precisar de anúncio no salão.
           </p>
 
+          {carregando && <p className="mt-4 text-sm text-muted-foreground">Carregando...</p>}
+
+          {!carregando && presentes.length === 0 && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Nenhuma criança presente no momento. Faça o check-in primeiro.
+            </p>
+          )}
+
           <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-            {PRESENTES.map((c) => (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelecionada(c)}
-                  className={
-                    "flex w-full items-center gap-3 rounded-2xl border p-4 text-left shadow-[var(--shadow-card)] transition focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] " +
-                    (selecionada?.id === c.id
-                      ? "border-primary/40 bg-accent"
-                      : "border-border bg-surface-elevated hover:border-foreground/20")
-                  }
-                >
-                  <div
-                    aria-hidden
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-primary"
+            {presentes
+              .filter((p) => !idsComChamadaAberta.has(p.nome))
+              .map((p) => (
+                <li key={p.criancaId}>
+                  <button
+                    type="button"
+                    onClick={() => setSelecionada(p)}
+                    className={
+                      "flex w-full items-center gap-3 rounded-2xl border p-4 text-left shadow-[var(--shadow-card)] transition focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] " +
+                      (selecionada?.criancaId === p.criancaId
+                        ? "border-primary/40 bg-accent"
+                        : "border-border bg-surface-elevated hover:border-foreground/20")
+                    }
                   >
-                    {initials(c.nome)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{c.nome}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {c.sala} · resp: {c.responsavel.split(" ")[0]}
-                    </p>
-                  </div>
-                </button>
-              </li>
-            ))}
+                    <div
+                      aria-hidden
+                      className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-primary"
+                    >
+                      {initials(p.nome)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">{p.nome}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {p.sala} · resp: {p.responsavelNome.split(" ")[0]}
+                      </p>
+                    </div>
+                  </button>
+                </li>
+              ))}
           </ul>
         </section>
 
@@ -197,17 +290,18 @@ function Emergencia() {
           <section className="mt-8 rounded-2xl border border-border bg-surface-elevated p-5 shadow-[var(--shadow-card)]">
             <p className="text-sm text-muted-foreground">
               Confirmar chamado de emergência para{" "}
-              <span className="font-semibold text-foreground">{selecionada.responsavel}</span>,
+              <span className="font-semibold text-foreground">{selecionada.responsavelNome}</span>,
               responsável por <span className="font-semibold text-foreground">{selecionada.nome}</span>.
               A mensagem vai por WhatsApp e notificação no app simultaneamente.
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
               <button
                 type="button"
+                disabled={acionando}
                 onClick={() => acionar(selecionada)}
-                className="inline-flex h-11 items-center gap-2 rounded-lg bg-emergency px-4 text-sm font-semibold text-emergency-foreground shadow-[var(--shadow-soft)] transition hover:opacity-92 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                className="inline-flex h-11 items-center gap-2 rounded-lg bg-emergency px-4 text-sm font-semibold text-emergency-foreground shadow-[var(--shadow-soft)] transition hover:opacity-92 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
               >
-                Acionar agora
+                {acionando ? "Acionando..." : "Acionar agora"}
               </button>
               <button
                 type="button"
