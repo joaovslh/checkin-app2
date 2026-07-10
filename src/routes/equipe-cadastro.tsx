@@ -20,9 +20,11 @@ type Crianca = {
   nome: string;
   data_nascimento: string;
   alergias: string[] | null;
+  observacoes: string | null;
   sala_id: string | null;
+  responsavel_principal_id: string;
   kids_salas: { nome: string } | null;
-  kids_responsaveis: { nome: string } | null;
+  kids_responsaveis: { id: string; nome: string; telefone: string } | null;
 };
 
 function initials(nome: string) {
@@ -66,6 +68,8 @@ function EquipeCadastro() {
   const [criancas, setCriancas] = useState<Crianca[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [carregandoAutorizacoes, setCarregandoAutorizacoes] = useState(false);
   const [autorizados, setAutorizados] = useState([{ nome: "", parentesco: "" }]);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -87,7 +91,7 @@ function EquipeCadastro() {
       supabase.from("kids_salas").select("id, nome, faixa_etaria_min, faixa_etaria_max").order("faixa_etaria_min", { ascending: true }),
       supabase
         .from("kids_criancas")
-        .select("id, nome, data_nascimento, alergias, sala_id, kids_salas(nome), kids_responsaveis(nome)")
+        .select("id, nome, data_nascimento, alergias, observacoes, sala_id, responsavel_principal_id, kids_salas(nome), kids_responsaveis(id, nome, telefone)")
         .order("nome", { ascending: true }),
     ]);
 
@@ -139,6 +143,38 @@ function EquipeCadastro() {
     setAlergias("");
     setObservacoes("");
     setAutorizados([{ nome: "", parentesco: "" }]);
+    setEditandoId(null);
+  }
+
+  function abrirNovo() {
+    limparFormulario();
+    setMostrarForm(true);
+  }
+
+  async function abrirEdicao(c: Crianca) {
+    setEditandoId(c.id);
+    setNomeCrianca(c.nome);
+    setDataNascimento(c.data_nascimento);
+    setSalaId(c.sala_id ?? "");
+    setSalaSugeridaAutomaticamente(false);
+    setNomeResponsavel(c.kids_responsaveis?.nome ?? "");
+    // remove o +55 pra exibir só o número no campo
+    setTelefoneResponsavel((c.kids_responsaveis?.telefone ?? "").replace(/^\+55/, ""));
+    setAlergias((c.alergias ?? []).join(", "));
+    setObservacoes(c.observacoes ?? "");
+    setMostrarForm(true);
+
+    setCarregandoAutorizacoes(true);
+    const { data } = await supabase
+      .from("kids_autorizacoes_retirada")
+      .select("nome, parentesco")
+      .eq("crianca_id", c.id);
+    setAutorizados(
+      data && data.length > 0
+        ? data.map((a) => ({ nome: a.nome, parentesco: a.parentesco ?? "" }))
+        : [{ nome: "", parentesco: "" }],
+    );
+    setCarregandoAutorizacoes(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -148,80 +184,127 @@ function EquipeCadastro() {
 
     try {
       const telefoneLimpo = `+55${telefoneResponsavel.replace(/\D/g, "")}`;
-
-      // 1. Reaproveita o responsável se já existir (mesmo telefone), senão cria
-      const { data: responsavelExistente } = await supabase
-        .from("kids_responsaveis")
-        .select("id")
-        .eq("igreja_id", IGREJA_ID)
-        .eq("telefone", telefoneLimpo)
-        .maybeSingle();
-
-      let responsavelId: string;
-
-      if (responsavelExistente) {
-        responsavelId = responsavelExistente.id;
-      } else {
-        const { data: novoResponsavel, error: respError } = await supabase
-          .from("kids_responsaveis")
-          .insert({
-            igreja_id: IGREJA_ID,
-            nome: nomeResponsavel,
-            telefone: telefoneLimpo,
-          })
-          .select("id")
-          .single();
-
-        if (respError || !novoResponsavel) throw new Error(respError?.message ?? "Erro ao criar responsável");
-        responsavelId = novoResponsavel.id;
-      }
-
-      // 2. Cria a criança
       const alergiasArray = alergias
         .split(",")
         .map((a) => a.trim())
         .filter(Boolean);
 
-      const { data: novaCrianca, error: criancaError } = await supabase
-        .from("kids_criancas")
-        .insert({
-          igreja_id: IGREJA_ID,
-          responsavel_principal_id: responsavelId,
-          sala_id: salaId || null,
-          nome: nomeCrianca,
-          data_nascimento: dataNascimento,
-          alergias: alergiasArray,
-          observacoes: observacoes || null,
-        })
-        .select("id")
-        .single();
+      if (editandoId) {
+        // ---------- MODO EDIÇÃO ----------
+        const criancaAtual = criancas.find((c) => c.id === editandoId);
+        if (!criancaAtual) throw new Error("Criança não encontrada.");
 
-      if (criancaError || !novaCrianca) throw new Error(criancaError?.message ?? "Erro ao cadastrar criança");
+        const { error: criancaError } = await supabase
+          .from("kids_criancas")
+          .update({
+            nome: nomeCrianca,
+            data_nascimento: dataNascimento,
+            sala_id: salaId || null,
+            alergias: alergiasArray,
+            observacoes: observacoes || null,
+          })
+          .eq("id", editandoId);
 
-      // 3. Autorizações extras (só as preenchidas)
-      const autorizacoesPreenchidas = autorizados.filter((a) => a.nome.trim());
-      if (autorizacoesPreenchidas.length > 0) {
-        const { error: autError } = await supabase.from("kids_autorizacoes_retirada").insert(
-          autorizacoesPreenchidas.map((a) => ({
+        if (criancaError) throw new Error(criancaError.message);
+
+        if (criancaAtual.kids_responsaveis?.id) {
+          const { error: respError } = await supabase
+            .from("kids_responsaveis")
+            .update({
+              nome: nomeResponsavel,
+              telefone: telefoneLimpo,
+            })
+            .eq("id", criancaAtual.kids_responsaveis.id);
+
+          if (respError) throw new Error(respError.message);
+        }
+
+        // Substitui as autorizações extras por completo (mais simples e seguro
+        // do que tentar diferenciar quais mudaram)
+        await supabase.from("kids_autorizacoes_retirada").delete().eq("crianca_id", editandoId);
+        const autorizacoesPreenchidas = autorizados.filter((a) => a.nome.trim());
+        if (autorizacoesPreenchidas.length > 0) {
+          const { error: autError } = await supabase.from("kids_autorizacoes_retirada").insert(
+            autorizacoesPreenchidas.map((a) => ({
+              igreja_id: IGREJA_ID,
+              crianca_id: editandoId,
+              nome: a.nome,
+              parentesco: a.parentesco || null,
+            })),
+          );
+          if (autError) throw new Error(autError.message);
+        }
+      } else {
+        // ---------- MODO NOVO CADASTRO ----------
+        // 1. Reaproveita o responsável se já existir (mesmo telefone), senão cria
+        const { data: responsavelExistente } = await supabase
+          .from("kids_responsaveis")
+          .select("id")
+          .eq("igreja_id", IGREJA_ID)
+          .eq("telefone", telefoneLimpo)
+          .maybeSingle();
+
+        let responsavelId: string;
+
+        if (responsavelExistente) {
+          responsavelId = responsavelExistente.id;
+        } else {
+          const { data: novoResponsavel, error: respError } = await supabase
+            .from("kids_responsaveis")
+            .insert({
+              igreja_id: IGREJA_ID,
+              nome: nomeResponsavel,
+              telefone: telefoneLimpo,
+            })
+            .select("id")
+            .single();
+
+          if (respError || !novoResponsavel) throw new Error(respError?.message ?? "Erro ao criar responsável");
+          responsavelId = novoResponsavel.id;
+        }
+
+        // 2. Cria a criança
+        const { data: novaCrianca, error: criancaError } = await supabase
+          .from("kids_criancas")
+          .insert({
             igreja_id: IGREJA_ID,
-            crianca_id: novaCrianca.id,
-            nome: a.nome,
-            parentesco: a.parentesco || null,
-          })),
-        );
-        if (autError) throw new Error(autError.message);
-      }
+            responsavel_principal_id: responsavelId,
+            sala_id: salaId || null,
+            nome: nomeCrianca,
+            data_nascimento: dataNascimento,
+            alergias: alergiasArray,
+            observacoes: observacoes || null,
+          })
+          .select("id")
+          .single();
 
-      // 4. Consentimento de termos gerais
-      await supabase.from("kids_consentimentos").insert({
-        igreja_id: IGREJA_ID,
-        crianca_id: novaCrianca.id,
-        responsavel_id: responsavelId,
-        tipo: "termos_gerais",
-        aceito: true,
-        aceito_em: new Date().toISOString(),
-        versao_termo: "v1",
-      });
+        if (criancaError || !novaCrianca) throw new Error(criancaError?.message ?? "Erro ao cadastrar criança");
+
+        // 3. Autorizações extras (só as preenchidas)
+        const autorizacoesPreenchidas = autorizados.filter((a) => a.nome.trim());
+        if (autorizacoesPreenchidas.length > 0) {
+          const { error: autError } = await supabase.from("kids_autorizacoes_retirada").insert(
+            autorizacoesPreenchidas.map((a) => ({
+              igreja_id: IGREJA_ID,
+              crianca_id: novaCrianca.id,
+              nome: a.nome,
+              parentesco: a.parentesco || null,
+            })),
+          );
+          if (autError) throw new Error(autError.message);
+        }
+
+        // 4. Consentimento de termos gerais
+        await supabase.from("kids_consentimentos").insert({
+          igreja_id: IGREJA_ID,
+          crianca_id: novaCrianca.id,
+          responsavel_id: responsavelId,
+          tipo: "termos_gerais",
+          aceito: true,
+          aceito_em: new Date().toISOString(),
+          versao_termo: "v1",
+        });
+      }
 
       limparFormulario();
       setMostrarForm(false);
@@ -259,7 +342,7 @@ function EquipeCadastro() {
           </div>
           <button
             type="button"
-            onClick={() => setMostrarForm((v) => !v)}
+            onClick={() => (mostrarForm && !editandoId ? setMostrarForm(false) : abrirNovo())}
             className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition hover:opacity-95 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -281,10 +364,12 @@ function EquipeCadastro() {
         {mostrarForm && (
           <section className="mb-10 rounded-2xl border border-border bg-surface-elevated p-6 shadow-[var(--shadow-card)]">
             <h2 className="text-lg font-semibold text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-              Novo cadastro
+              {editandoId ? "Editar cadastro" : "Novo cadastro"}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Cadastro feito pela equipe, presencial. O reconhecimento facial é habilitado depois, em uma fase futura.
+              {editandoId
+                ? "Atualize os dados da criança e do responsável."
+                : "Cadastro feito pela equipe, presencial. O reconhecimento facial é habilitado depois, em uma fase futura."}
             </p>
 
             <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
@@ -408,14 +493,17 @@ function EquipeCadastro() {
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  disabled={salvando}
+                  disabled={salvando || carregandoAutorizacoes}
                   className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground shadow-[var(--shadow-soft)] transition hover:bg-primary/92 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
                 >
-                  {salvando ? "Salvando..." : "Salvar cadastro"}
+                  {salvando ? "Salvando..." : editandoId ? "Salvar alterações" : "Salvar cadastro"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMostrarForm(false)}
+                  onClick={() => {
+                    limparFormulario();
+                    setMostrarForm(false);
+                  }}
                   className="inline-flex h-11 items-center justify-center rounded-md border border-border bg-surface px-5 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
                 >
                   Cancelar
@@ -439,35 +527,39 @@ function EquipeCadastro() {
           ) : (
             <ul className="mt-4 grid gap-3 sm:grid-cols-2">
               {criancas.map((c) => (
-                <li
-                  key={c.id}
-                  className="rounded-2xl border border-border bg-surface-elevated p-4 shadow-[var(--shadow-card)]"
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      aria-hidden
-                      className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-primary"
-                    >
-                      {initials(c.nome)}
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    onClick={() => abrirEdicao(c)}
+                    className="w-full rounded-2xl border border-border bg-surface-elevated p-4 text-left shadow-[var(--shadow-card)] transition hover:border-foreground/20 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        aria-hidden
+                        className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-primary"
+                      >
+                        {initials(c.nome)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-foreground">{c.nome}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {c.kids_salas?.nome ?? "Sem sala"} · {idadeEmAnos(c.data_nascimento)} · resp: {c.kids_responsaveis?.nome ?? "—"}
+                        </p>
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">Editar</span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-foreground">{c.nome}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {c.kids_salas?.nome ?? "Sem sala"} · {idadeEmAnos(c.data_nascimento)} · resp: {c.kids_responsaveis?.nome ?? "—"}
-                      </p>
+                    {c.alergias && c.alergias.length > 0 && (
+                      <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emergency-border bg-emergency-surface px-2 py-0.5 text-[11px] font-medium text-foreground">
+                        Alergia: {c.alergias.join(", ")}
+                      </span>
+                    )}
+                    <div className="mt-3">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <span className="h-1.5 w-1.5 rounded-full bg-foreground/20" />
+                        Reconhecimento facial — fase futura
+                      </span>
                     </div>
-                  </div>
-                  {c.alergias && c.alergias.length > 0 && (
-                    <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emergency-border bg-emergency-surface px-2 py-0.5 text-[11px] font-medium text-foreground">
-                      Alergia: {c.alergias.join(", ")}
-                    </span>
-                  )}
-                  <div className="mt-3">
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <span className="h-1.5 w-1.5 rounded-full bg-foreground/20" />
-                      Reconhecimento facial — fase futura
-                    </span>
-                  </div>
+                  </button>
                 </li>
               ))}
             </ul>
