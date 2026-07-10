@@ -13,3 +13,14 @@ export async function requireEquipeSession() {
     throw redirect({ to: "/" });
   }
 }
+
+/**
+ * Usar em beforeLoad da rota /familia. Se não houver sessão ativa,
+ * volta para a tela de pedir o link de acesso.
+ */
+export async function requireResponsavelSession() {
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) {
+    throw redirect({ to: "/responsavel" });
+  }
+}
