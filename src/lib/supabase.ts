@@ -14,4 +14,4 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // Sistema exclusivo da Igreja Virtude por enquanto (single-tenant).
 // Quando virar multi-igreja de verdade, isso deixa de ser uma constante
 // fixa e passa a vir de contexto (subdomínio, seleção no login, etc).
-export const IGREJA_ID = import.meta.env.VITE_IGREJA_ID as string;
+export const IGREJA_ID = (import.meta.env.VITE_IGREJA_ID as string)?.trim();
