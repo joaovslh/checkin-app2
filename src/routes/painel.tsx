@@ -29,6 +29,7 @@ function Painel() {
           <HubCard
             title="Check-in"
             description="Registrar entrada e saída das crianças."
+            to="/checkin"
             icon={
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 7V5a2 2 0 0 1 2-2h2" />
@@ -143,11 +144,13 @@ function HubCard({
   description,
   icon,
   critical,
+  to,
 }: {
   title: string;
   description: string;
   icon: React.ReactNode;
   critical?: boolean;
+  to?: string;
 }) {
   const base =
     "group relative flex h-full flex-col justify-between gap-6 rounded-2xl border p-6 text-left shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
@@ -156,8 +159,8 @@ function HubCard({
     ? "border-foreground/15 bg-surface-elevated ring-1 ring-inset ring-foreground/5 hover:border-foreground/25"
     : "border-border bg-surface-elevated hover:border-foreground/20";
 
-  return (
-    <button type="button" className={`${base} ${tone}`}>
+  const content = (
+    <>
       <div className="flex items-start justify-between">
         <div
           aria-hidden
@@ -203,6 +206,20 @@ function HubCard({
           <path d="M9 6l6 6-6 6" />
         </svg>
       </div>
+    </>
+  );
+
+  if (to) {
+    return (
+      <Link to={to} className={`${base} ${tone}`}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" className={`${base} ${tone}`}>
+      {content}
     </button>
   );
 }
