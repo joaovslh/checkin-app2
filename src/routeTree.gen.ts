@@ -10,8 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResponsavelRouteImport } from './routes/responsavel'
+import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as PainelRouteImport } from './routes/painel'
+import { Route as EquipeCadastroRouteImport } from './routes/equipe-cadastro'
 import { Route as EquipeRouteImport } from './routes/equipe'
+import { Route as EmergenciaRouteImport } from './routes/emergencia'
 import { Route as CheckinRouteImport } from './routes/checkin'
 import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as IndexRouteImport } from './routes/index'
@@ -21,14 +24,29 @@ const ResponsavelRoute = ResponsavelRouteImport.update({
   path: '/responsavel',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RelatoriosRoute = RelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PainelRoute = PainelRouteImport.update({
   id: '/painel',
   path: '/painel',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EquipeCadastroRoute = EquipeCadastroRouteImport.update({
+  id: '/equipe-cadastro',
+  path: '/equipe-cadastro',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EquipeRoute = EquipeRouteImport.update({
   id: '/equipe',
   path: '/equipe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmergenciaRoute = EmergenciaRouteImport.update({
+  id: '/emergencia',
+  path: '/emergencia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckinRoute = CheckinRouteImport.update({
@@ -51,16 +69,22 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
   '/checkin': typeof CheckinRoute
+  '/emergencia': typeof EmergenciaRoute
   '/equipe': typeof EquipeRoute
+  '/equipe-cadastro': typeof EquipeCadastroRoute
   '/painel': typeof PainelRoute
+  '/relatorios': typeof RelatoriosRoute
   '/responsavel': typeof ResponsavelRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
   '/checkin': typeof CheckinRoute
+  '/emergencia': typeof EmergenciaRoute
   '/equipe': typeof EquipeRoute
+  '/equipe-cadastro': typeof EquipeCadastroRoute
   '/painel': typeof PainelRoute
+  '/relatorios': typeof RelatoriosRoute
   '/responsavel': typeof ResponsavelRoute
 }
 export interface FileRoutesById {
@@ -68,8 +92,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
   '/checkin': typeof CheckinRoute
+  '/emergencia': typeof EmergenciaRoute
   '/equipe': typeof EquipeRoute
+  '/equipe-cadastro': typeof EquipeCadastroRoute
   '/painel': typeof PainelRoute
+  '/relatorios': typeof RelatoriosRoute
   '/responsavel': typeof ResponsavelRoute
 }
 export interface FileRouteTypes {
@@ -78,18 +105,33 @@ export interface FileRouteTypes {
     | '/'
     | '/cadastro'
     | '/checkin'
+    | '/emergencia'
     | '/equipe'
+    | '/equipe-cadastro'
     | '/painel'
+    | '/relatorios'
     | '/responsavel'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cadastro' | '/checkin' | '/equipe' | '/painel' | '/responsavel'
+  to:
+    | '/'
+    | '/cadastro'
+    | '/checkin'
+    | '/emergencia'
+    | '/equipe'
+    | '/equipe-cadastro'
+    | '/painel'
+    | '/relatorios'
+    | '/responsavel'
   id:
     | '__root__'
     | '/'
     | '/cadastro'
     | '/checkin'
+    | '/emergencia'
     | '/equipe'
+    | '/equipe-cadastro'
     | '/painel'
+    | '/relatorios'
     | '/responsavel'
   fileRoutesById: FileRoutesById
 }
@@ -97,8 +139,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CadastroRoute: typeof CadastroRoute
   CheckinRoute: typeof CheckinRoute
+  EmergenciaRoute: typeof EmergenciaRoute
   EquipeRoute: typeof EquipeRoute
+  EquipeCadastroRoute: typeof EquipeCadastroRoute
   PainelRoute: typeof PainelRoute
+  RelatoriosRoute: typeof RelatoriosRoute
   ResponsavelRoute: typeof ResponsavelRoute
 }
 
@@ -111,6 +156,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResponsavelRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/relatorios': {
+      id: '/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof RelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/painel': {
       id: '/painel'
       path: '/painel'
@@ -118,11 +170,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/equipe-cadastro': {
+      id: '/equipe-cadastro'
+      path: '/equipe-cadastro'
+      fullPath: '/equipe-cadastro'
+      preLoaderRoute: typeof EquipeCadastroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/equipe': {
       id: '/equipe'
       path: '/equipe'
       fullPath: '/equipe'
       preLoaderRoute: typeof EquipeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/emergencia': {
+      id: '/emergencia'
+      path: '/emergencia'
+      fullPath: '/emergencia'
+      preLoaderRoute: typeof EmergenciaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/checkin': {
@@ -153,10 +219,23 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CadastroRoute: CadastroRoute,
   CheckinRoute: CheckinRoute,
+  EmergenciaRoute: EmergenciaRoute,
   EquipeRoute: EquipeRoute,
+  EquipeCadastroRoute: EquipeCadastroRoute,
   PainelRoute: PainelRoute,
+  RelatoriosRoute: RelatoriosRoute,
   ResponsavelRoute: ResponsavelRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
