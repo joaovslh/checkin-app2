@@ -1,6 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { requireEquipeSession } from "../lib/auth-guard";
+import { supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/painel")({
+  beforeLoad: requireEquipeSession,
   component: Painel,
 });
 
@@ -88,6 +91,7 @@ function Painel() {
 }
 
 function Header() {
+  const navigate = useNavigate();
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur">
       <div className="mx-auto flex h-16 w-full max-w-5xl items-center gap-4 px-6 lg:px-10">
@@ -111,22 +115,18 @@ function Header() {
 
         <div className="mx-auto hidden min-w-0 flex-col items-center text-center sm:flex">
           <p className="truncate text-[13px] font-medium text-foreground">
-            Igreja Batista da Redenção
-          </p>
-          <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-            Botafogo · Domingo, 09:12
+            Igreja Virtude
           </p>
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <div className="hidden items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-xs sm:flex">
-            <span className="grid h-6 w-6 place-items-center rounded-full bg-accent text-[11px] font-semibold text-primary">
-              JM
-            </span>
-            <span className="font-medium text-foreground">Juliana</span>
-          </div>
           <Link
             to="/"
+            onClick={async (e) => {
+              e.preventDefault();
+              await supabase.auth.signOut();
+              navigate({ to: "/" });
+            }}
             className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-surface-elevated px-3 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

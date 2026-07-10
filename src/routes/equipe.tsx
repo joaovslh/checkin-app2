@@ -1,4 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/equipe")({
   component: Index,
@@ -37,6 +39,31 @@ function Index() {
 
 function LoginPanel() {
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    setLoading(false);
+
+    if (signInError) {
+      setError("E-mail ou senha incorretos. Confira e tente novamente.");
+      return;
+    }
+
+    navigate({ to: "/painel" });
+  }
+
   return (
     <section className="flex flex-col">
       <Logo />
@@ -52,28 +79,15 @@ function LoginPanel() {
           Entre com a conta da sua igreja para iniciar a sala do dia, acompanhar presença e responder a chamados de emergência.
         </p>
 
-        <form
-          className="mt-10 space-y-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            navigate({ to: "/painel" });
-          }}
-        >
-          <Field label="Igreja" htmlFor="church">
-            <select
-              id="church"
-              className="h-11 w-full rounded-md border border-input bg-surface-elevated px-3 text-[15px] text-foreground shadow-[var(--shadow-soft)] outline-none transition focus:border-ring focus:shadow-[var(--shadow-focus)]"
-              defaultValue="ibrb"
-            >
-              <option value="ibrb">Igreja Batista da Redenção — Botafogo</option>
-              <option value="c1">Comunidade Cristã Central</option>
-            </select>
-          </Field>
-
+        <form className="mt-10 space-y-5" onSubmit={handleSubmit}>
           <Field label="E-mail" htmlFor="email">
             <input
               id="email"
               type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="voce@igreja.org"
               className="h-11 w-full rounded-md border border-input bg-surface-elevated px-3 text-[15px] text-foreground shadow-[var(--shadow-soft)] outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:shadow-[var(--shadow-focus)]"
             />
@@ -91,13 +105,25 @@ function LoginPanel() {
             <input
               id="password"
               type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               className="h-11 w-full rounded-md border border-input bg-surface-elevated px-3 text-[15px] text-foreground shadow-[var(--shadow-soft)] outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:shadow-[var(--shadow-focus)]"
             />
           </Field>
 
+          {error && (
+            <p className="rounded-md border border-emergency-border bg-emergency-surface px-3 py-2 text-sm text-foreground">
+              {error}
+            </p>
+          )}
+
           <div className="pt-2">
-            <PrimaryButton className="w-full">Entrar</PrimaryButton>
+            <PrimaryButton className="w-full" type="submit" disabled={loading}>
+              {loading ? "Entrando..." : "Entrar"}
+            </PrimaryButton>
           </div>
 
           <p className="pt-2 text-center text-sm text-muted-foreground">

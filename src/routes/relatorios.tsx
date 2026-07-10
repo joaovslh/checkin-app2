@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { requireEquipeSession } from "../lib/auth-guard";
 
 export const Route = createFileRoute("/relatorios")({
+  beforeLoad: requireEquipeSession,
   component: Relatorios,
 });
 

@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { requireEquipeSession } from "../lib/auth-guard";
 
 export const Route = createFileRoute("/equipe-cadastro")({
+  beforeLoad: requireEquipeSession,
   component: EquipeCadastro,
 });
 
