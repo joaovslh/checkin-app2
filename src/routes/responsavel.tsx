@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { IGREJA_ID, supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/responsavel")({
   component: Responsavel,
@@ -8,6 +9,10 @@ export const Route = createFileRoute("/responsavel")({
 function Responsavel() {
   const [sent, setSent] = useState(false);
   const [phone, setPhone] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [nome, setNome] = useState("");
+  const [linkAcesso, setLinkAcesso] = useState("");
 
   function formatBR(value: string) {
     const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -24,6 +29,28 @@ function Responsavel() {
 
   const masked = formatBR(phone);
   const canSubmit = phone.replace(/\D/g, "").length >= 10;
+
+  async function handleEnviar() {
+    setErro(null);
+    setEnviando(true);
+
+    const telefoneLimpo = `+55${phone.replace(/\D/g, "")}`;
+
+    const { data, error } = await supabase.functions.invoke("responsavel-magic-link", {
+      body: { igreja_id: IGREJA_ID, telefone: telefoneLimpo },
+    });
+
+    setEnviando(false);
+
+    if (error || data?.error) {
+      setErro(data?.error ?? "Não foi possível enviar o link. Tente novamente.");
+      return;
+    }
+
+    setNome(data.nome);
+    setLinkAcesso(`${window.location.origin}/entrar?token_hash=${data.token_hash}&type=magiclink`);
+    setSent(true);
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -42,14 +69,15 @@ function Responsavel() {
 
         {!sent ? (
           <RequestForm
-            phone={phone}
             masked={masked}
             onChange={(v) => setPhone(v)}
             canSubmit={canSubmit}
-            onSubmit={() => setSent(true)}
+            enviando={enviando}
+            erro={erro}
+            onSubmit={handleEnviar}
           />
         ) : (
-          <SentState phone={masked} onResend={() => setSent(false)} />
+          <SentState phone={masked} nome={nome} linkAcesso={linkAcesso} onResend={() => setSent(false)} />
         )}
 
         <footer className="mt-auto pt-16 text-center text-xs text-muted-foreground">
@@ -61,16 +89,18 @@ function Responsavel() {
 }
 
 function RequestForm({
-  phone,
   masked,
   onChange,
   canSubmit,
+  enviando,
+  erro,
   onSubmit,
 }: {
-  phone: string;
   masked: string;
   onChange: (v: string) => void;
   canSubmit: boolean;
+  enviando: boolean;
+  erro: string | null;
   onSubmit: () => void;
 }) {
   return (
@@ -87,6 +117,12 @@ function RequestForm({
       <p className="mt-3 text-base leading-relaxed text-muted-foreground">
         Vamos enviar um link seguro para o seu WhatsApp. Basta tocar no link para entrar na área da família.
       </p>
+
+      {erro && (
+        <div className="mt-6 rounded-md border border-emergency-border bg-emergency-surface px-4 py-3 text-sm text-foreground">
+          {erro}
+        </div>
+      )}
 
       <form
         className="mt-10 space-y-5"
@@ -119,13 +155,13 @@ function RequestForm({
 
         <button
           type="submit"
-          disabled={!canSubmit}
+          disabled={!canSubmit || enviando}
           className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-primary px-5 text-[15px] font-medium text-primary-foreground shadow-[var(--shadow-soft)] transition hover:bg-primary/92 active:bg-primary/88 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" />
           </svg>
-          Enviar link por WhatsApp
+          {enviando ? "Enviando..." : "Enviar link por WhatsApp"}
         </button>
 
         <p className="text-center text-xs leading-relaxed text-muted-foreground">
@@ -136,7 +172,17 @@ function RequestForm({
   );
 }
 
-function SentState({ phone, onResend }: { phone: string; onResend: () => void }) {
+function SentState({
+  phone,
+  nome,
+  linkAcesso,
+  onResend,
+}: {
+  phone: string;
+  nome: string;
+  linkAcesso: string;
+  onResend: () => void;
+}) {
   return (
     <section className="mt-8 flex flex-col">
       <div className="flex items-center gap-3">
@@ -157,13 +203,13 @@ function SentState({ phone, onResend }: { phone: string; onResend: () => void })
         className="mt-4 text-3xl font-semibold leading-[1.15] tracking-tight text-foreground sm:text-4xl"
         style={{ fontFamily: "var(--font-display)" }}
       >
-        Confira seu WhatsApp.
+        Olá, {nome.split(" ")[0]}.
       </h1>
       <p className="mt-3 text-base leading-relaxed text-muted-foreground">
         Enviamos um link seguro para <span className="font-medium text-foreground">+55 {phone}</span>. Toque no link para entrar. Ele expira em 10 minutos.
       </p>
 
-      <WhatsAppPreview />
+      <WhatsAppPreview linkAcesso={linkAcesso} />
 
       <div className="mt-8 space-y-3 text-center">
         <button
@@ -181,7 +227,7 @@ function SentState({ phone, onResend }: { phone: string; onResend: () => void })
   );
 }
 
-function WhatsAppPreview() {
+function WhatsAppPreview({ linkAcesso }: { linkAcesso: string }) {
   return (
     <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
       {/* Barra do WhatsApp */}
@@ -199,10 +245,6 @@ function WhatsAppPreview() {
           <p className="truncate text-[15px] font-semibold text-foreground">Sela</p>
           <p className="truncate text-xs text-muted-foreground">Conta verificada · agora</p>
         </div>
-        <svg viewBox="0 0 24 24" className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 6L9 17l-5-5" />
-          <path d="M22 10l-7.5 7.5" />
-        </svg>
       </div>
 
       {/* Corpo com bolha */}
@@ -219,20 +261,25 @@ function WhatsAppPreview() {
             Olá! Este é o seu link seguro para entrar na área da família do{" "}
             <span className="font-semibold">Sela</span>.
           </p>
-          <div className="mt-2 rounded-lg border border-border bg-surface px-3 py-2">
-            <p className="truncate text-[12px] font-medium text-primary">
-              sela.app/e/48f2-a91c-…
-            </p>
+          <a
+            href={linkAcesso}
+            className="mt-2 block rounded-lg border border-border bg-surface px-3 py-2 transition hover:border-primary/40"
+          >
+            <p className="truncate text-[12px] font-medium text-primary">{linkAcesso}</p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
               Toque para entrar · expira em 10 min
             </p>
-          </div>
+          </a>
           <p className="mt-2 text-[11px] text-muted-foreground">
             Se não foi você, ignore esta mensagem.
           </p>
           <p className="mt-1 text-right text-[10px] text-muted-foreground">agora ✓✓</p>
         </div>
       </div>
+
+      <p className="border-t border-border bg-surface px-4 py-2.5 text-center text-[11px] text-muted-foreground">
+        Envio real por WhatsApp chega em uma fase futura — por enquanto, o link acima já funciona de verdade.
+      </p>
     </div>
   );
 }
