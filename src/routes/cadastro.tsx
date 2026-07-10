@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { IGREJA_ID, supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/cadastro")({
   component: Cadastro,
@@ -7,6 +8,13 @@ export const Route = createFileRoute("/cadastro")({
 
 function Cadastro() {
   const [phone, setPhone] = useState("");
+  const [nomeCrianca, setNomeCrianca] = useState("");
+  const [dataNascimento, setDataNascimento] = useState("");
+  const [nomeResponsavel, setNomeResponsavel] = useState("");
+  const [alergia, setAlergia] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [concluido, setConcluido] = useState(false);
 
   function formatBR(value: string) {
     const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -19,6 +27,77 @@ function Cadastro() {
     if (p2) out += p2;
     if (p3) out += `-${p3}`;
     return out;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErro(null);
+
+    const telefoneDigits = phone.replace(/\D/g, "");
+    if (telefoneDigits.length < 10) {
+      setErro("Confira o número de WhatsApp digitado.");
+      return;
+    }
+
+    setEnviando(true);
+
+    const { data, error } = await supabase.functions.invoke("autocadastro", {
+      body: {
+        igreja_id: IGREJA_ID,
+        responsavel: {
+          nome: nomeResponsavel,
+          telefone: `+55${telefoneDigits}`,
+        },
+        crianca: {
+          nome: nomeCrianca,
+          data_nascimento: dataNascimento,
+          alergias: alergia.trim() ? [alergia.trim()] : [],
+        },
+        consentimento_termos_gerais: true,
+        consentimento_biometria: false,
+      },
+    });
+
+    setEnviando(false);
+
+    if (error || data?.error) {
+      setErro(data?.error ?? "Não foi possível concluir o cadastro. Tente novamente.");
+      return;
+    }
+
+    setConcluido(true);
+  }
+
+  if (concluido) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col items-center justify-center px-6 py-8 text-center">
+          <div
+            aria-hidden
+            className="grid h-14 w-14 place-items-center rounded-full bg-accent text-primary"
+          >
+            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </div>
+          <h1
+            className="mt-5 text-3xl font-semibold leading-[1.15] tracking-tight text-foreground"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Cadastro concluído!
+          </h1>
+          <p className="mt-3 max-w-sm text-base leading-relaxed text-muted-foreground">
+            {nomeCrianca} já está no sistema. No dia do culto, procure a equipe na entrada para o primeiro check-in.
+          </p>
+          <Link
+            to="/"
+            className="mt-8 inline-flex h-11 items-center justify-center rounded-md border border-border bg-surface-elevated px-5 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          >
+            Voltar ao início
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -62,17 +141,43 @@ function Cadastro() {
             Leva menos de 1 minuto. Nenhum dado de saúde é obrigatório.
           </p>
 
-          <form className="mt-10 space-y-5" onSubmit={(e) => e.preventDefault()}>
+          {erro && (
+            <div className="mt-6 rounded-md border border-emergency-border bg-emergency-surface px-4 py-3 text-sm text-foreground">
+              {erro}
+            </div>
+          )}
+
+          <form className="mt-10 space-y-5" onSubmit={handleSubmit}>
             <Field label="Nome da criança" htmlFor="child-name">
-              <TextInput id="child-name" placeholder="Ex: Laura Mendonça" autoComplete="off" />
+              <TextInput
+                id="child-name"
+                required
+                value={nomeCrianca}
+                onChange={(e) => setNomeCrianca(e.target.value)}
+                placeholder="Ex: Laura Mendonça"
+                autoComplete="off"
+              />
             </Field>
 
             <Field label="Data de nascimento" htmlFor="child-dob">
-              <TextInput id="child-dob" type="date" />
+              <TextInput
+                id="child-dob"
+                required
+                type="date"
+                value={dataNascimento}
+                onChange={(e) => setDataNascimento(e.target.value)}
+              />
             </Field>
 
             <Field label="Seu nome (responsável)" htmlFor="guardian-name">
-              <TextInput id="guardian-name" placeholder="Ex: Ana Mendonça" autoComplete="name" />
+              <TextInput
+                id="guardian-name"
+                required
+                value={nomeResponsavel}
+                onChange={(e) => setNomeResponsavel(e.target.value)}
+                placeholder="Ex: Ana Mendonça"
+                autoComplete="name"
+              />
             </Field>
 
             <Field label="Seu WhatsApp" htmlFor="guardian-phone">
@@ -83,6 +188,7 @@ function Cadastro() {
                 </div>
                 <input
                   id="guardian-phone"
+                  required
                   type="tel"
                   inputMode="numeric"
                   autoComplete="tel-national"
@@ -99,15 +205,22 @@ function Cadastro() {
               htmlFor="allergy"
               aside={<span className="text-xs font-medium text-muted-foreground">Opcional</span>}
             >
-              <TextInput id="allergy" placeholder="Ex: amendoim" autoComplete="off" />
+              <TextInput
+                id="allergy"
+                value={alergia}
+                onChange={(e) => setAlergia(e.target.value)}
+                placeholder="Ex: amendoim"
+                autoComplete="off"
+              />
             </Field>
 
             <div className="pt-2">
               <button
                 type="submit"
-                className="inline-flex h-12 w-full items-center justify-center rounded-md bg-primary px-5 text-[15px] font-medium text-primary-foreground shadow-[var(--shadow-soft)] transition hover:bg-primary/92 active:bg-primary/88 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                disabled={enviando}
+                className="inline-flex h-12 w-full items-center justify-center rounded-md bg-primary px-5 text-[15px] font-medium text-primary-foreground shadow-[var(--shadow-soft)] transition hover:bg-primary/92 active:bg-primary/88 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
               >
-                Concluir cadastro
+                {enviando ? "Enviando..." : "Concluir cadastro"}
               </button>
               <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
                 Ao continuar, você concorda com os{" "}
