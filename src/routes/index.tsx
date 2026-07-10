@@ -1,339 +1,162 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
-  component: Index,
+  component: Portal,
 });
 
-function Logo({ className = "" }: { className?: string }) {
+function Logo() {
   return (
-    <div className={`flex items-center gap-2.5 ${className}`}>
+    <div className="flex flex-col items-center gap-3">
       <div
         aria-hidden
-        className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground"
+        className="grid h-14 w-14 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-[var(--shadow-card)]"
       >
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 12s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" />
           <circle cx="12" cy="12" r="2.5" />
         </svg>
       </div>
-      <span className="font-display text-[1.35rem] font-semibold tracking-tight text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-        Sela
-      </span>
     </div>
   );
 }
 
-function Index() {
+function Portal() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto grid min-h-screen w-full max-w-6xl gap-10 px-6 py-10 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:px-10 lg:py-16">
-        <LoginPanel />
-        <PreviewPanel />
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Splash / login institucional (equipe) ---------- */
-
-function LoginPanel() {
-  return (
-    <section className="flex flex-col">
-      <Logo />
-
-      <div className="mt-16 max-w-md">
-        <p className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          Acesso da equipe
-        </p>
-        <h1 className="mt-3 text-4xl font-semibold leading-[1.1] tracking-tight text-foreground sm:text-[2.75rem]" style={{ fontFamily: "var(--font-display)" }}>
-          Check-in do ministério infantil.
-        </h1>
-        <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-          Entre com a conta da sua igreja para iniciar a sala do dia, acompanhar presença e responder a chamados de emergência.
-        </p>
-
-        <form className="mt-10 space-y-5" onSubmit={(e) => e.preventDefault()}>
-          <Field label="Igreja" htmlFor="church">
-            <select
-              id="church"
-              className="h-11 w-full rounded-md border border-input bg-surface-elevated px-3 text-[15px] text-foreground shadow-[var(--shadow-soft)] outline-none transition focus:border-ring focus:shadow-[var(--shadow-focus)]"
-              defaultValue="ibrb"
-            >
-              <option value="ibrb">Igreja Batista da Redenção — Botafogo</option>
-              <option value="c1">Comunidade Cristã Central</option>
-            </select>
-          </Field>
-
-          <Field label="E-mail" htmlFor="email">
-            <input
-              id="email"
-              type="email"
-              placeholder="voce@igreja.org"
-              className="h-11 w-full rounded-md border border-input bg-surface-elevated px-3 text-[15px] text-foreground shadow-[var(--shadow-soft)] outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:shadow-[var(--shadow-focus)]"
-            />
-          </Field>
-
-          <Field
-            label="Senha"
-            htmlFor="password"
-            aside={
-              <a href="#" className="text-sm font-medium text-primary hover:underline underline-offset-4">
-                Esqueci minha senha
-              </a>
-            }
+      <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col px-6 py-12 sm:py-16">
+        <header className="flex flex-col items-center text-center">
+          <Logo />
+          <h1
+            className="mt-6 text-4xl font-semibold tracking-tight text-foreground sm:text-[2.75rem]"
+            style={{ fontFamily: "var(--font-display)" }}
           >
-            <input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              className="h-11 w-full rounded-md border border-input bg-surface-elevated px-3 text-[15px] text-foreground shadow-[var(--shadow-soft)] outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:shadow-[var(--shadow-focus)]"
-            />
-          </Field>
-
-          <div className="pt-2">
-            <PrimaryButton className="w-full">Entrar</PrimaryButton>
-          </div>
-
-          <p className="pt-2 text-center text-sm text-muted-foreground">
-            É um responsável, não da equipe?{" "}
-            <a href="#" className="font-medium text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground">
-              Baixar o app do responsável
-            </a>
+            Sela
+          </h1>
+          <p className="mt-3 text-base text-muted-foreground sm:text-lg">
+            Como você quer entrar?
           </p>
-        </form>
-      </div>
+        </header>
 
-      <footer className="mt-auto pt-16 text-xs text-muted-foreground">
-        <p>Dados protegidos conforme LGPD. Sessão da equipe expira automaticamente após 8h.</p>
-      </footer>
-    </section>
-  );
-}
+        <div className="mt-12 flex flex-col gap-4">
+          <EntryCard
+            to="/equipe"
+            title="Sou da equipe"
+            description="Voluntários e líderes do ministério infantil."
+            icon={
+              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            }
+          />
 
-function Field({
-  label,
-  htmlFor,
-  aside,
-  children,
-}: {
-  label: string;
-  htmlFor: string;
-  aside?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <label htmlFor={htmlFor} className="block">
-      <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-sm font-medium text-foreground">{label}</span>
-        {aside}
-      </div>
-      {children}
-    </label>
-  );
-}
-
-/* ---------- Preview de componentes ---------- */
-
-function PreviewPanel() {
-  return (
-    <aside className="flex flex-col gap-6 lg:sticky lg:top-16 lg:self-start">
-      <div>
-        <p className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          Design system — v0
-        </p>
-        <h2 className="mt-2 text-xl font-semibold text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-          Componentes base
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Amostras para validar tom, cor e densidade antes das telas de fluxo.
-        </p>
-      </div>
-
-      {/* Botões */}
-      <PreviewBlock label="Botões">
-        <div className="flex flex-wrap items-center gap-3">
-          <PrimaryButton>Iniciar check-in</PrimaryButton>
-          <SecondaryButton>Cancelar</SecondaryButton>
+          <EntryCard
+            title="Sou responsável"
+            description="Acesso rápido via WhatsApp, sem senha."
+            disabled
+            icon={
+              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" />
+              </svg>
+            }
+          />
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Primário para ação principal única por tela. Secundário para escape ou ação neutra.
-        </p>
-      </PreviewBlock>
 
-      {/* Card padrão */}
-      <PreviewBlock label="Card padrão — criança na sala">
-        <ChildCard />
-      </PreviewBlock>
-
-      {/* Alerta de emergência */}
-      <PreviewBlock label="Estado de emergência">
-        <EmergencyAlert />
-        <p className="mt-3 text-xs text-muted-foreground">
-          Vermelho é reservado a este estado. Não usar em avisos comuns, validações de formulário ou confirmação.
-        </p>
-      </PreviewBlock>
-    </aside>
-  );
-}
-
-function PreviewBlock({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="mb-2 flex items-center gap-2">
-        <span className="h-1 w-1 rounded-full bg-muted-foreground/60" />
-        <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-          {label}
-        </p>
-      </div>
-      <div className="rounded-xl border border-border bg-surface p-5">{children}</div>
-    </div>
-  );
-}
-
-/* ---------- Componentes primitivos ---------- */
-
-function PrimaryButton({
-  children,
-  className = "",
-  ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <button
-      {...rest}
-      className={
-        "inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 text-[15px] font-medium text-primary-foreground shadow-[var(--shadow-soft)] transition " +
-        "hover:bg-primary/92 active:bg-primary/88 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50 " +
-        className
-      }
-    >
-      {children}
-    </button>
-  );
-}
-
-function SecondaryButton({
-  children,
-  className = "",
-  ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <button
-      {...rest}
-      className={
-        "inline-flex h-11 items-center justify-center rounded-md border border-border bg-surface-elevated px-5 text-[15px] font-medium text-foreground transition " +
-        "hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] " +
-        className
-      }
-    >
-      {children}
-    </button>
-  );
-}
-
-function ChildCard() {
-  return (
-    <article className="rounded-xl border border-border bg-surface-elevated p-4 shadow-[var(--shadow-card)]">
-      <div className="flex items-start gap-4">
-        <div
-          aria-hidden
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-accent text-[15px] font-semibold text-primary"
-        >
-          LM
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="truncate text-[15px] font-semibold text-foreground">
-                Laura Mendonça
+        <div className="mt-10">
+          <button
+            type="button"
+            className="group flex w-full items-center gap-4 rounded-xl border border-dashed border-border bg-transparent px-5 py-4 text-left transition hover:border-foreground/40 hover:bg-surface focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          >
+            <div
+              aria-hidden
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-dashed border-border text-muted-foreground"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <path d="M14 14h3v3" />
+                <path d="M21 14v.01" />
+                <path d="M14 21h.01" />
+                <path d="M17 17h4v4" />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-[15px] font-semibold text-foreground">
+                Primeira vez aqui?
               </h3>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                4 anos · Sala Girassóis · Retirar com Ana Mendonça
+                Escaneie o QR da recepção para se cadastrar rapidamente.
               </p>
             </div>
-            <StatusPill>Na sala</StatusPill>
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <Tag tone="warning">Alergia: amendoim</Tag>
-            <Tag>Uso de inalador</Tag>
-          </div>
+          </button>
         </div>
-      </div>
-    </article>
-  );
-}
 
-function StatusPill({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground">
-      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-      {children}
-    </span>
-  );
-}
-
-function Tag({
-  children,
-  tone = "neutral",
-}: {
-  children: React.ReactNode;
-  tone?: "neutral" | "warning";
-}) {
-  const styles =
-    tone === "warning"
-      ? "border-[color:var(--color-emergency-border)] bg-[color:var(--color-emergency-surface)] text-[color:var(--color-emergency)]"
-      : "border-border bg-surface text-muted-foreground";
-  return (
-    <span
-      className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${styles}`}
-    >
-      {children}
-    </span>
-  );
-}
-
-function EmergencyAlert() {
-  return (
-    <div
-      role="alert"
-      className="rounded-xl border p-4"
-      style={{
-        backgroundColor: "var(--color-emergency-surface)",
-        borderColor: "var(--color-emergency-border)",
-      }}
-    >
-      <div className="flex items-start gap-3">
-        <div
-          aria-hidden
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full"
-          style={{ backgroundColor: "var(--color-emergency)", color: "var(--color-emergency-foreground)" }}
-        >
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 9v4" />
-            <path d="M12 17h.01" />
-            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
-          </svg>
-        </div>
-        <div className="min-w-0 flex-1">
-          <h4 className="text-[15px] font-semibold" style={{ color: "var(--color-emergency)" }}>
-            Chamado de emergência — Sala Girassóis
-          </h4>
-          <p className="mt-1 text-sm text-foreground">
-            Ana Mendonça (mãe de Laura) foi acionada agora. Aguardando retirada na porta da sala.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              className="inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium text-[color:var(--color-emergency-foreground)] transition"
-              style={{ backgroundColor: "var(--color-emergency)" }}
-            >
-              Confirmar retirada
-            </button>
-            <button className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface-elevated px-4 text-sm font-medium text-foreground transition hover:bg-secondary">
-              Ligar para responsável
-            </button>
-          </div>
-        </div>
+        <footer className="mt-auto pt-16 text-center text-xs text-muted-foreground">
+          <p>Dados protegidos conforme LGPD.</p>
+        </footer>
       </div>
     </div>
+  );
+}
+
+function EntryCard({
+  to,
+  title,
+  description,
+  icon,
+  disabled,
+}: {
+  to?: string;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  disabled?: boolean;
+}) {
+  const content = (
+    <>
+      <div
+        aria-hidden
+        className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-accent text-primary"
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <h3 className="text-lg font-semibold text-foreground" style={{ fontFamily: "var(--font-display)" }}>
+          {title}
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      </div>
+      <svg
+        aria-hidden
+        viewBox="0 0 24 24"
+        className="h-5 w-5 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M9 6l6 6-6 6" />
+      </svg>
+    </>
+  );
+
+  const className =
+    "group flex w-full items-center gap-4 rounded-2xl border border-border bg-surface-elevated px-5 py-5 text-left shadow-[var(--shadow-card)] transition hover:border-foreground/20 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
+
+  if (to && !disabled) {
+    return (
+      <Link to={to} className={className}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" className={className}>
+      {content}
+    </button>
   );
 }
