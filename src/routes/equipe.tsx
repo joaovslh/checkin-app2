@@ -37,6 +37,7 @@ function Index() {
 /* ---------- Splash / login institucional (equipe) ---------- */
 
 function LoginPanel() {
+  const navigate = useNavigate();
   return (
     <section className="flex flex-col">
       <Logo />
@@ -52,7 +53,13 @@ function LoginPanel() {
           Entre com a conta da sua igreja para iniciar a sala do dia, acompanhar presença e responder a chamados de emergência.
         </p>
 
-        <form className="mt-10 space-y-5" onSubmit={(e) => e.preventDefault()}>
+        <form
+          className="mt-10 space-y-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            navigate({ to: "/painel" });
+          }}
+        >
           <Field label="Igreja" htmlFor="church">
             <select
               id="church"
