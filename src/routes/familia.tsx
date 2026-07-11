@@ -16,6 +16,7 @@ type Filho = {
 };
 
 type StatusCheckin = {
+  id: string;
   entradaEm: string;
   saidaEm: string | null;
 } | null;
@@ -55,6 +56,10 @@ function Familia() {
   const [chamada, setChamada] = useState<Chamada>(null);
   const [aulas, setAulas] = useState<AulaSemana[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [mostrarRetirada, setMostrarRetirada] = useState(false);
+  const [codigoDigitado, setCodigoDigitado] = useState("");
+  const [confirmandoRetirada, setConfirmandoRetirada] = useState(false);
+  const [erroRetirada, setErroRetirada] = useState<string | null>(null);
 
   // Carrega os filhos do responsável logado (RLS já filtra sozinho)
   useEffect(() => {
@@ -86,7 +91,7 @@ function Familia() {
       const [{ data: checkinData }, { data: chamadaData }] = await Promise.all([
         supabase
           .from("kids_checkins")
-          .select("entrada_em, saida_em")
+          .select("id, entrada_em, saida_em")
           .eq("crianca_id", selecionadoId)
           .is("saida_em", null)
           .maybeSingle(),
@@ -98,7 +103,7 @@ function Familia() {
           .maybeSingle(),
       ]);
 
-      setStatus(checkinData ? { entradaEm: checkinData.entrada_em, saidaEm: checkinData.saida_em } : null);
+      setStatus(checkinData ? { id: checkinData.id, entradaEm: checkinData.entrada_em, saidaEm: checkinData.saida_em } : null);
       setChamada(chamadaData ? { id: chamadaData.id, abertaEm: chamadaData.aberta_em } : null);
     }
 
@@ -183,6 +188,35 @@ function Familia() {
       supabase.removeChannel(canal);
     };
   }, [salaIdAtual]);
+
+  async function confirmarRetirada() {
+    if (!status) return;
+    setErroRetirada(null);
+    setConfirmandoRetirada(true);
+
+    const { data, error } = await supabase.rpc("responsavel_confirmar_retirada", {
+      p_checkin_id: status.id,
+      p_codigo: codigoDigitado.trim(),
+    });
+
+    setConfirmandoRetirada(false);
+
+    if (error || !data?.sucesso) {
+      setErroRetirada(data?.erro ?? "Não foi possível confirmar. Tente novamente.");
+      return;
+    }
+
+    setMostrarRetirada(false);
+    setCodigoDigitado("");
+    // O Realtime já vai atualizar sozinho, mas atualiza na hora também
+    setStatus(null);
+  }
+
+  useEffect(() => {
+    setMostrarRetirada(false);
+    setCodigoDigitado("");
+    setErroRetirada(null);
+  }, [selecionadoId]);
 
   async function sair() {
     await supabase.auth.signOut();
@@ -275,33 +309,86 @@ function Familia() {
                   </div>
                 )}
 
-                <div className="mt-5 flex items-center gap-4 rounded-2xl border border-border bg-surface-elevated p-5 shadow-[var(--shadow-card)]">
-                  <div
-                    aria-hidden
-                    className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-accent text-lg font-semibold text-primary"
-                  >
-                    {initials(filhoSelecionado.nome)}
+                <div className="mt-5 rounded-2xl border border-border bg-surface-elevated p-5 shadow-[var(--shadow-card)]">
+                  <div className="flex items-center gap-4">
+                    <div
+                      aria-hidden
+                      className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-accent text-lg font-semibold text-primary"
+                    >
+                      {initials(filhoSelecionado.nome)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      {status ? (
+                        <>
+                          <p className="flex items-center gap-1.5 text-base font-semibold text-foreground">
+                            <span className="h-2 w-2 rounded-full bg-primary" />
+                            Na sala {filhoSelecionado.salaNome ?? ""}
+                          </p>
+                          <p className="mt-0.5 text-sm text-muted-foreground">
+                            Entrada às {horaFormatada(status.entradaEm)}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-base font-semibold text-foreground">Sem check-in ativo</p>
+                          <p className="mt-0.5 text-sm text-muted-foreground">
+                            Nenhum registro de entrada agora.
+                          </p>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    {status ? (
-                      <>
-                        <p className="flex items-center gap-1.5 text-base font-semibold text-foreground">
-                          <span className="h-2 w-2 rounded-full bg-primary" />
-                          Na sala {filhoSelecionado.salaNome ?? ""}
-                        </p>
-                        <p className="mt-0.5 text-sm text-muted-foreground">
-                          Entrada às {horaFormatada(status.entradaEm)}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-base font-semibold text-foreground">Sem check-in ativo</p>
-                        <p className="mt-0.5 text-sm text-muted-foreground">
-                          Nenhum registro de entrada agora.
-                        </p>
-                      </>
-                    )}
-                  </div>
+
+                  {status && !mostrarRetirada && (
+                    <button
+                      type="button"
+                      onClick={() => setMostrarRetirada(true)}
+                      className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-foreground transition hover:bg-secondary"
+                    >
+                      Retirar agora
+                    </button>
+                  )}
+
+                  {status && mostrarRetirada && (
+                    <div className="mt-4 border-t border-border pt-4">
+                      <p className="text-sm text-muted-foreground">
+                        Digite o código de 4 dígitos que está no adesivo para confirmar a retirada.
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={4}
+                          value={codigoDigitado}
+                          onChange={(e) => setCodigoDigitado(e.target.value.replace(/\D/g, ""))}
+                          placeholder="0000"
+                          className="h-11 w-24 rounded-md border border-input bg-surface-elevated px-3 text-center text-lg tracking-[0.3em] text-foreground shadow-[var(--shadow-soft)] outline-none focus:border-ring focus:shadow-[var(--shadow-focus)]"
+                        />
+                        <button
+                          type="button"
+                          disabled={codigoDigitado.length !== 4 || confirmandoRetirada}
+                          onClick={confirmarRetirada}
+                          className="inline-flex h-11 flex-1 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-[var(--shadow-soft)] transition hover:bg-primary/92 disabled:opacity-50"
+                        >
+                          {confirmandoRetirada ? "Confirmando..." : "Confirmar"}
+                        </button>
+                      </div>
+                      {erroRetirada && (
+                        <p className="mt-2 text-sm text-emergency">{erroRetirada}</p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMostrarRetirada(false);
+                          setCodigoDigitado("");
+                          setErroRetirada(null);
+                        }}
+                        className="mt-2 text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <p className="mt-3 text-xs text-muted-foreground">
