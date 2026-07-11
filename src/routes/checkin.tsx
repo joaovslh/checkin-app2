@@ -8,6 +8,11 @@ export const Route = createFileRoute("/checkin")({
   component: CheckIn,
 });
 
+type Autorizado = {
+  nome: string;
+  parentesco: string | null;
+};
+
 type Presente = {
   checkinId: string;
   criancaId: string;
@@ -15,6 +20,9 @@ type Presente = {
   sala: string;
   entrada: string;
   alergias: string[] | null;
+  codigo: string;
+  responsavelNome: string;
+  autorizados: Autorizado[];
 };
 
 type Cadastrada = {
@@ -51,6 +59,7 @@ function CheckIn() {
   const [erro, setErro] = useState<string | null>(null);
   const [confirmacaoCheckin, setConfirmacaoCheckin] = useState<{ nome: string; codigo: string } | null>(null);
   const [ordemSalas, setOrdemSalas] = useState<Record<string, number>>({});
+  const [expandido, setExpandido] = useState<string | null>(null);
 
   async function carregarDados() {
     setCarregando(true);
@@ -59,7 +68,9 @@ function CheckIn() {
     const [presentesRes, criancasRes] = await Promise.all([
       supabase
         .from("kids_checkins")
-        .select("id, entrada_em, crianca_id, kids_criancas(nome, alergias, kids_salas(nome))")
+        .select(
+          "id, entrada_em, codigo_pareado, crianca_id, kids_criancas(nome, alergias, kids_salas(nome), kids_responsaveis(nome), kids_autorizacoes_retirada(nome, parentesco))",
+        )
         .is("saida_em", null)
         .order("entrada_em", { ascending: false }),
       supabase
@@ -81,6 +92,9 @@ function CheckIn() {
       sala: c.kids_criancas?.kids_salas?.nome ?? "Sem sala",
       entrada: horaFormatada(c.entrada_em),
       alergias: c.kids_criancas?.alergias ?? null,
+      codigo: c.codigo_pareado ?? "----",
+      responsavelNome: c.kids_criancas?.kids_responsaveis?.nome ?? "—",
+      autorizados: c.kids_criancas?.kids_autorizacoes_retirada ?? [],
     }));
 
     const cadastroFormatado: Cadastrada[] = (criancasRes.data ?? []).map((c: any) => ({
@@ -370,22 +384,82 @@ function CheckIn() {
                   {grupo.itens.map((p) => (
                     <li
                       key={p.checkinId}
-                      className="flex items-center gap-4 rounded-2xl border border-border bg-surface-elevated p-4 shadow-[var(--shadow-card)]"
+                      className="rounded-2xl border border-border bg-surface-elevated shadow-[var(--shadow-card)]"
                     >
-                      <Avatar nome={p.nome} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-base font-semibold text-foreground">{p.nome}</p>
-                        <p className="truncate text-sm text-muted-foreground">Entrada às {p.entrada}</p>
-                        {p.alergias && p.alergias.length > 0 && <AlergiaTag texto={p.alergias.join(", ")} />}
+                      <div className="flex items-center gap-4 p-4">
+                        <Avatar nome={p.nome} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-base font-semibold text-foreground">{p.nome}</p>
+                          <p className="truncate text-sm text-muted-foreground">Entrada às {p.entrada}</p>
+                          {p.alergias && p.alergias.length > 0 && <AlergiaTag texto={p.alergias.join(", ")} />}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setExpandido(expandido === p.checkinId ? null : p.checkinId)}
+                          className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-foreground transition hover:bg-secondary"
+                        >
+                          Retirada
+                          <svg
+                            viewBox="0 0 24 24"
+                            className={"h-4 w-4 transition-transform " + (expandido === p.checkinId ? "rotate-180" : "")}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M6 9l6 6 6-6" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={processando === p.checkinId}
+                          onClick={() => fazerCheckout(p.checkinId)}
+                          className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
+                        >
+                          {processando === p.checkinId ? "..." : "Check-out"}
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        disabled={processando === p.checkinId}
-                        onClick={() => fazerCheckout(p.checkinId)}
-                        className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
-                      >
-                        {processando === p.checkinId ? "..." : "Check-out"}
-                      </button>
+
+                      {expandido === p.checkinId && (
+                        <div className="border-t border-border px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                              Código do adesivo
+                            </span>
+                            <span
+                              className="rounded-md bg-accent px-2.5 py-1 text-base font-bold tracking-[0.15em] text-primary"
+                              style={{ fontFamily: "var(--font-display)" }}
+                            >
+                              {p.codigo}
+                            </span>
+                          </div>
+
+                          <p className="mt-3 text-sm text-foreground">
+                            <span className="font-medium">Responsável principal:</span> {p.responsavelNome}
+                          </p>
+
+                          <div className="mt-2">
+                            <p className="text-sm font-medium text-foreground">Também autorizados a retirar:</p>
+                            {p.autorizados.length === 0 ? (
+                              <p className="mt-0.5 text-sm text-muted-foreground">Nenhuma pessoa extra cadastrada.</p>
+                            ) : (
+                              <ul className="mt-1 space-y-0.5">
+                                {p.autorizados.map((a, i) => (
+                                  <li key={i} className="text-sm text-muted-foreground">
+                                    {a.nome}
+                                    {a.parentesco ? ` (${a.parentesco})` : ""}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+
+                          <p className="mt-3 text-xs text-muted-foreground">
+                            Confira o código com quem está retirando antes de confirmar o check-out.
+                          </p>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
