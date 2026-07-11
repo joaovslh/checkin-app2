@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { IGREJA_ID, supabase } from "../lib/supabase";
 
@@ -8,12 +8,9 @@ export const Route = createFileRoute("/responsavel")({
 
 function Responsavel() {
   const navigate = useNavigate();
-  const [etapa, setEtapa] = useState<"telefone" | "codigo">("telefone");
   const [phone, setPhone] = useState("");
-  const [codigo, setCodigo] = useState("");
-  const [nome, setNome] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [verificando, setVerificando] = useState(false);
+  const [sobrenome, setSobrenome] = useState("");
+  const [entrando, setEntrando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   function formatBR(value: string) {
@@ -30,42 +27,21 @@ function Responsavel() {
   }
 
   const masked = formatBR(phone);
-  const telefoneValido = phone.replace(/\D/g, "").length >= 10;
+  const podeEntrar = phone.replace(/\D/g, "").length >= 10 && sobrenome.trim().length > 0;
 
-  async function handleEnviarCodigo() {
+  async function handleEntrar() {
     setErro(null);
-    setEnviando(true);
+    setEntrando(true);
 
     const telefoneLimpo = `+55${phone.replace(/\D/g, "")}`;
 
-    const { data, error } = await supabase.functions.invoke("responsavel-solicitar-codigo", {
-      body: { igreja_id: IGREJA_ID, telefone: telefoneLimpo },
-    });
-
-    setEnviando(false);
-
-    if (error || data?.error) {
-      setErro(data?.error ?? "Não foi possível enviar o código. Tente novamente.");
-      return;
-    }
-
-    setNome(data.nome);
-    setEtapa("codigo");
-  }
-
-  async function handleVerificarCodigo() {
-    setErro(null);
-    setVerificando(true);
-
-    const telefoneLimpo = `+55${phone.replace(/\D/g, "")}`;
-
-    const { data, error } = await supabase.functions.invoke("responsavel-verificar-codigo", {
-      body: { telefone: telefoneLimpo, codigo },
+    const { data, error } = await supabase.functions.invoke("responsavel-login-direto", {
+      body: { igreja_id: IGREJA_ID, telefone: telefoneLimpo, sobrenome: sobrenome.trim() },
     });
 
     if (error || data?.error) {
-      setVerificando(false);
-      setErro(data?.error ?? "Código incorreto. Tente novamente.");
+      setEntrando(false);
+      setErro(data?.error ?? "Não foi possível entrar. Tente novamente.");
       return;
     }
 
@@ -74,10 +50,10 @@ function Responsavel() {
       type: "magiclink",
     });
 
-    setVerificando(false);
+    setEntrando(false);
 
     if (sessionError) {
-      setErro("Não foi possível entrar. Peça um novo código.");
+      setErro("Não foi possível entrar. Tente novamente.");
       return;
     }
 
@@ -90,7 +66,7 @@ function Responsavel() {
         <div>
           <button
             type="button"
-            onClick={() => (etapa === "codigo" ? setEtapa("telefone") : navigate({ to: "/" }))}
+            onClick={() => navigate({ to: "/" })}
             className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 -ml-2 text-sm font-medium text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -100,131 +76,79 @@ function Responsavel() {
           </button>
         </div>
 
-        {etapa === "telefone" ? (
-          <section className="mt-8 flex flex-col">
-            <p className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Área da família
-            </p>
-            <h1
-              className="mt-3 text-3xl font-semibold leading-[1.15] tracking-tight text-foreground sm:text-4xl"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              Entre sem senha, por SMS.
-            </h1>
-            <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-              Vamos enviar um código de 6 dígitos por SMS para o seu celular.
-            </p>
+        <section className="mt-8 flex flex-col">
+          <p className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Área da família
+          </p>
+          <h1
+            className="mt-3 text-3xl font-semibold leading-[1.15] tracking-tight text-foreground sm:text-4xl"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Entre com seu telefone.
+          </h1>
+          <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+            Confirme o telefone e sobrenome usados no cadastro do seu filho.
+          </p>
 
-            {erro && (
-              <div className="mt-6 rounded-md border border-emergency-border bg-emergency-surface px-4 py-3 text-sm text-foreground">
-                {erro}
-              </div>
-            )}
+          {erro && (
+            <div className="mt-6 rounded-md border border-emergency-border bg-emergency-surface px-4 py-3 text-sm text-foreground">
+              {erro}
+            </div>
+          )}
 
-            <form
-              className="mt-10 space-y-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (telefoneValido) handleEnviarCodigo();
-              }}
-            >
-              <label htmlFor="whatsapp" className="block">
-                <span className="mb-1.5 block text-sm font-medium text-foreground">
-                  Número de celular
-                </span>
-                <div className="flex h-12 items-stretch overflow-hidden rounded-md border border-input bg-surface-elevated shadow-[var(--shadow-soft)] transition focus-within:border-ring focus-within:shadow-[var(--shadow-focus)]">
-                  <div className="flex items-center gap-2 border-r border-border bg-surface px-3 text-[15px] font-medium text-foreground">
-                    <span aria-hidden className="text-base leading-none">🇧🇷</span>
-                    +55
-                  </div>
-                  <input
-                    id="whatsapp"
-                    type="tel"
-                    inputMode="numeric"
-                    autoComplete="tel-national"
-                    placeholder="(11) 91234-5678"
-                    value={masked}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="min-w-0 flex-1 bg-transparent px-3 text-[15px] text-foreground outline-none placeholder:text-muted-foreground/70"
-                  />
+          <form
+            className="mt-10 space-y-5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (podeEntrar) handleEntrar();
+            }}
+          >
+            <label htmlFor="whatsapp" className="block">
+              <span className="mb-1.5 block text-sm font-medium text-foreground">
+                Número de celular
+              </span>
+              <div className="flex h-12 items-stretch overflow-hidden rounded-md border border-input bg-surface-elevated shadow-[var(--shadow-soft)] transition focus-within:border-ring focus-within:shadow-[var(--shadow-focus)]">
+                <div className="flex items-center gap-2 border-r border-border bg-surface px-3 text-[15px] font-medium text-foreground">
+                  <span aria-hidden className="text-base leading-none">🇧🇷</span>
+                  +55
                 </div>
-              </label>
-
-              <button
-                type="submit"
-                disabled={!telefoneValido || enviando}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-primary px-5 text-[15px] font-medium text-primary-foreground shadow-[var(--shadow-soft)] transition hover:bg-primary/92 active:bg-primary/88 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
-              >
-                {enviando ? "Enviando..." : "Enviar código por SMS"}
-              </button>
-
-              <p className="text-center text-xs leading-relaxed text-muted-foreground">
-                O código chega em alguns segundos e expira em 10 minutos.
-              </p>
-            </form>
-          </section>
-        ) : (
-          <section className="mt-8 flex flex-col">
-            <p className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Código enviado
-            </p>
-            <h1
-              className="mt-3 text-3xl font-semibold leading-[1.15] tracking-tight text-foreground sm:text-4xl"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              Olá, {nome.split(" ")[0]}.
-            </h1>
-            <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-              Digite o código de 6 dígitos que chegou por SMS em{" "}
-              <span className="font-medium text-foreground">+55 {masked}</span>.
-            </p>
-
-            {erro && (
-              <div className="mt-6 rounded-md border border-emergency-border bg-emergency-surface px-4 py-3 text-sm text-foreground">
-                {erro}
+                <input
+                  id="whatsapp"
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  placeholder="(11) 91234-5678"
+                  value={masked}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="min-w-0 flex-1 bg-transparent px-3 text-[15px] text-foreground outline-none placeholder:text-muted-foreground/70"
+                />
               </div>
-            )}
+            </label>
 
-            <form
-              className="mt-8 space-y-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (codigo.length === 6) handleVerificarCodigo();
-              }}
-            >
+            <label htmlFor="sobrenome" className="block">
+              <span className="mb-1.5 block text-sm font-medium text-foreground">
+                Seu sobrenome
+              </span>
               <input
+                id="sobrenome"
                 type="text"
-                inputMode="numeric"
-                maxLength={6}
-                autoFocus
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))}
-                placeholder="000000"
-                className="h-16 w-full rounded-md border border-input bg-surface-elevated px-3 text-center text-3xl tracking-[0.4em] text-foreground shadow-[var(--shadow-soft)] outline-none focus:border-ring focus:shadow-[var(--shadow-focus)]"
+                autoComplete="family-name"
+                placeholder="Ex: Henriques"
+                value={sobrenome}
+                onChange={(e) => setSobrenome(e.target.value)}
+                className="h-12 w-full rounded-md border border-input bg-surface-elevated px-3 text-[15px] text-foreground shadow-[var(--shadow-soft)] outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:shadow-[var(--shadow-focus)]"
               />
+            </label>
 
-              <button
-                type="submit"
-                disabled={codigo.length !== 6 || verificando}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-primary px-5 text-[15px] font-medium text-primary-foreground shadow-[var(--shadow-soft)] transition hover:bg-primary/92 active:bg-primary/88 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
-              >
-                {verificando ? "Verificando..." : "Entrar"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setEtapa("telefone");
-                  setCodigo("");
-                  setErro(null);
-                }}
-                className="block w-full text-center text-sm font-medium text-primary hover:underline underline-offset-4"
-              >
-                Não recebeu? Pedir novo código
-              </button>
-            </form>
-          </section>
-        )}
+            <button
+              type="submit"
+              disabled={!podeEntrar || entrando}
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-primary px-5 text-[15px] font-medium text-primary-foreground shadow-[var(--shadow-soft)] transition hover:bg-primary/92 active:bg-primary/88 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
+            >
+              {entrando ? "Entrando..." : "Entrar"}
+            </button>
+          </form>
+        </section>
 
         <footer className="mt-auto pt-16 text-center text-xs text-muted-foreground">
           <p>Dados protegidos conforme LGPD.</p>
