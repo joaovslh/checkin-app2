@@ -48,6 +48,19 @@ function horaFormatada(iso: string) {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+// Converte a chave pública VAPID (base64 url-safe) pro formato que a
+// Push API do navegador espera (Uint8Array)
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 function Familia() {
   const navigate = useNavigate();
   const [filhos, setFilhos] = useState<Filho[]>([]);
@@ -55,6 +68,10 @@ function Familia() {
   const [status, setStatus] = useState<StatusCheckin>(null);
   const [chamada, setChamada] = useState<Chamada>(null);
   const [aulas, setAulas] = useState<AulaSemana[]>([]);
+  const [statusNotificacao, setStatusNotificacao] = useState<
+    "verificando" | "ativa" | "inativa" | "indisponivel" | "negada"
+  >("verificando");
+  const [ativandoNotificacao, setAtivandoNotificacao] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [mostrarRetirada, setMostrarRetirada] = useState(false);
   const [codigoDigitado, setCodigoDigitado] = useState("");
@@ -218,6 +235,64 @@ function Familia() {
     setErroRetirada(null);
   }, [selecionadoId]);
 
+  // Confere se já existe inscrição de push ativa nesse navegador
+  useEffect(() => {
+    async function verificar() {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        setStatusNotificacao("indisponivel");
+        return;
+      }
+      if (Notification.permission === "denied") {
+        setStatusNotificacao("negada");
+        return;
+      }
+      const registration = await navigator.serviceWorker.ready;
+      const inscricaoAtual = await registration.pushManager.getSubscription();
+      setStatusNotificacao(inscricaoAtual ? "ativa" : "inativa");
+    }
+    verificar();
+  }, []);
+
+  async function ativarNotificacoes() {
+    setAtivandoNotificacao(true);
+
+    try {
+      const permissao = await Notification.requestPermission();
+      if (permissao !== "granted") {
+        setStatusNotificacao("negada");
+        setAtivandoNotificacao(false);
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string;
+
+      const inscricao = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const responsavelId = sessionData.session?.user.app_metadata?.responsavel_id as string | undefined;
+
+      if (!responsavelId) throw new Error("Sessão inválida.");
+
+      const json = inscricao.toJSON();
+      await supabase.from("kids_push_subscriptions").insert({
+        responsavel_id: responsavelId,
+        endpoint: json.endpoint,
+        p256dh: json.keys?.p256dh,
+        auth: json.keys?.auth,
+      });
+
+      setStatusNotificacao("ativa");
+    } catch (err) {
+      console.error("Erro ao ativar notificações:", err);
+    } finally {
+      setAtivandoNotificacao(false);
+    }
+  }
+
   async function sair() {
     await supabase.auth.signOut();
     navigate({ to: "/" });
@@ -247,6 +322,30 @@ function Familia() {
       </header>
 
       <main className="mx-auto w-full max-w-3xl px-6 py-8">
+        {statusNotificacao === "inativa" && (
+          <div className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface-elevated p-4 shadow-[var(--shadow-card)]">
+            <div className="flex items-center gap-3">
+              <div aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-primary">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                </svg>
+              </div>
+              <p className="text-sm text-foreground">
+                Ative notificações para saber quando a aula da semana for publicada.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={ativarNotificacoes}
+              disabled={ativandoNotificacao}
+              className="inline-flex h-9 shrink-0 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-[var(--shadow-soft)] transition hover:opacity-95 disabled:opacity-50"
+            >
+              {ativandoNotificacao ? "Ativando..." : "Ativar"}
+            </button>
+          </div>
+        )}
+
         {carregando ? (
           <p className="text-sm text-muted-foreground">Carregando...</p>
         ) : filhos.length === 0 ? (

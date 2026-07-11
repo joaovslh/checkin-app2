@@ -131,6 +131,13 @@ function EquipeAula() {
       }
 
       setSucesso(true);
+
+      // Dispara o push em paralelo — não bloqueia a tela se falhar
+      supabase.functions
+        .invoke("enviar-push-aula", { body: { sala_id: salaId, tema } })
+        .catch(() => {
+          // silencioso — publicar o conteúdo já é o essencial
+        });
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao salvar.");
     } finally {
