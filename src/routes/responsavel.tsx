@@ -133,7 +133,7 @@ function Responsavel() {
                 id="sobrenome"
                 type="text"
                 autoComplete="family-name"
-                placeholder="Ex: Henriques"
+                placeholder=""
                 value={sobrenome}
                 onChange={(e) => setSobrenome(e.target.value)}
                 className="h-12 w-full rounded-md border border-input bg-surface-elevated px-3 text-[15px] text-foreground shadow-[var(--shadow-soft)] outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:shadow-[var(--shadow-focus)]"
