@@ -9,7 +9,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+    // Só usa localStorage no navegador — no servidor (SSR) isso não
+    // existe, e passar undefined deixa o supabase-js usar um storage
+    // "em memória" só pra aquela renderização, sem quebrar nada.
+    storage: typeof window !== "undefined" ? window.localStorage : undefined,
+  },
+});
 
 // Sistema exclusivo da Igreja Virtude por enquanto (single-tenant).
 // Quando virar multi-igreja de verdade, isso deixa de ser uma constante
