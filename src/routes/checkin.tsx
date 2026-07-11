@@ -49,6 +49,7 @@ function CheckIn() {
   const [carregando, setCarregando] = useState(true);
   const [processando, setProcessando] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [confirmacaoCheckin, setConfirmacaoCheckin] = useState<{ nome: string; codigo: string } | null>(null);
 
   async function carregarDados() {
     setCarregando(true);
@@ -121,11 +122,13 @@ function CheckIn() {
     setProcessando(c.id);
     setErro(null);
 
+    const codigo = gerarCodigoPareado();
+
     const { error } = await supabase.from("kids_checkins").insert({
       igreja_id: IGREJA_ID,
       crianca_id: c.id,
       sala_id: c.salaId,
-      codigo_pareado: gerarCodigoPareado(),
+      codigo_pareado: codigo,
       metodo_entrada: "manual",
     });
 
@@ -133,6 +136,7 @@ function CheckIn() {
       setErro("Não foi possível fazer o check-in. Tente novamente.");
     } else {
       setQuery("");
+      setConfirmacaoCheckin({ nome: c.nome, codigo });
       await carregarDados();
     }
     setProcessando(null);
@@ -191,6 +195,38 @@ function CheckIn() {
         {erro && (
           <div className="mb-6 rounded-md border border-emergency-border bg-emergency-surface px-4 py-3 text-sm text-foreground">
             {erro}
+          </div>
+        )}
+
+        {confirmacaoCheckin && (
+          <div className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-accent px-5 py-4 shadow-[var(--shadow-card)]">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                Check-in de <span className="font-semibold">{confirmacaoCheckin.nome}</span> confirmado
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Anote ou informe este código ao responsável — ele será necessário na saída
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span
+                className="rounded-lg bg-primary px-4 py-2 text-2xl font-bold tracking-[0.2em] text-primary-foreground"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {confirmacaoCheckin.codigo}
+              </span>
+              <button
+                type="button"
+                onClick={() => setConfirmacaoCheckin(null)}
+                className="text-muted-foreground transition hover:text-foreground"
+                aria-label="Fechar"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18" />
+                  <path d="M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
         )}
 
