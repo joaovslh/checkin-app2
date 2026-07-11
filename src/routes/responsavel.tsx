@@ -232,17 +232,9 @@ function WhatsAppPreview({ linkAcesso }: { linkAcesso: string }) {
     <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
       {/* Barra do WhatsApp */}
       <div className="flex items-center gap-3 border-b border-border bg-surface-elevated px-4 py-3">
-        <div
-          aria-hidden
-          className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground"
-        >
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 12s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" />
-            <circle cx="12" cy="12" r="2.5" />
-          </svg>
-        </div>
+        <img src="/logo-mascote.png" alt="" aria-hidden className="h-9 w-9 rounded-full object-contain" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-semibold text-foreground">Sela</p>
+          <p className="truncate text-[15px] font-semibold text-foreground">Virtude Kids</p>
           <p className="truncate text-xs text-muted-foreground">Conta verificada · agora</p>
         </div>
       </div>
@@ -259,7 +251,7 @@ function WhatsAppPreview({ linkAcesso }: { linkAcesso: string }) {
         <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-surface-elevated p-3 shadow-[var(--shadow-soft)]">
           <p className="text-[13px] leading-relaxed text-foreground">
             Olá! Este é o seu link seguro para entrar na área da família do{" "}
-            <span className="font-semibold">Sela</span>.
+            <span className="font-semibold">Virtude Kids</span>.
           </p>
           <a
             href={linkAcesso}

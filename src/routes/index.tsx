@@ -6,16 +6,8 @@ export const Route = createFileRoute("/")({
 
 function Logo() {
   return (
-    <div className="flex flex-col items-center gap-3">
-      <div
-        aria-hidden
-        className="grid h-14 w-14 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-[var(--shadow-card)]"
-      >
-        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 12s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" />
-          <circle cx="12" cy="12" r="2.5" />
-        </svg>
-      </div>
+    <div className="flex flex-col items-center">
+      <img src="/logo-mascote.png" alt="" aria-hidden className="h-20 w-20 object-contain" />
     </div>
   );
 }
@@ -26,11 +18,14 @@ function Portal() {
       <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col px-6 py-12 sm:py-16">
         <header className="flex flex-col items-center text-center">
           <Logo />
+          <p className="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Check-in
+          </p>
           <h1
-            className="mt-6 text-4xl font-semibold tracking-tight text-foreground sm:text-[2.75rem]"
+            className="mt-1 text-4xl font-semibold tracking-tight text-foreground sm:text-[2.75rem]"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Sela
+            Virtude Kids
           </h1>
           <p className="mt-3 text-base text-muted-foreground sm:text-lg">
             Como você quer entrar?

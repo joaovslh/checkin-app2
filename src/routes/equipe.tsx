@@ -8,19 +8,16 @@ export const Route = createFileRoute("/equipe")({
 
 function Logo({ className = "" }: { className?: string }) {
   return (
-    <div className={`flex items-center gap-2.5 ${className}`}>
-      <div
-        aria-hidden
-        className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground"
-      >
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 12s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" />
-          <circle cx="12" cy="12" r="2.5" />
-        </svg>
+    <div className={`flex items-center gap-3 ${className}`}>
+      <img src="/logo-mascote.png" alt="" aria-hidden className="h-11 w-11 object-contain" />
+      <div className="flex flex-col leading-none">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          Check-in
+        </span>
+        <span className="mt-0.5 font-display text-[1.35rem] font-semibold tracking-tight text-foreground" style={{ fontFamily: "var(--font-display)" }}>
+          Virtude Kids
+        </span>
       </div>
-      <span className="font-display text-[1.35rem] font-semibold tracking-tight text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-        Sela
-      </span>
     </div>
   );
 }

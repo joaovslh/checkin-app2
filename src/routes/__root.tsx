@@ -77,14 +77,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Sela — Check-in infantil" },
-      { name: "description", content: "Sela — check-in infantil para ministérios de igrejas" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Sela — Check-in infantil" },
+      { title: "Check-in — Virtude Kids" },
+      { name: "description", content: "Check-in Virtude Kids — presença e segurança no ministério infantil" },
+      { name: "author", content: "Virtude Kids" },
+      { property: "og:title", content: "Check-in — Virtude Kids" },
       { property: "og:description", content: "Presença, segurança e cuidado no ministério infantil." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {

@@ -108,20 +108,12 @@ function Header() {
     <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur">
       <div className="mx-auto flex h-16 w-full max-w-5xl items-center gap-4 px-6 lg:px-10">
         <Link to="/painel" className="flex items-center gap-2.5 focus-visible:outline-none">
-          <div
-            aria-hidden
-            className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground"
-          >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 12s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" />
-              <circle cx="12" cy="12" r="2.5" />
-            </svg>
-          </div>
+          <img src="/logo-mascote.png" alt="" aria-hidden className="h-9 w-9 object-contain" />
           <span
             className="text-lg font-semibold tracking-tight text-foreground"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Sela
+            Virtude Kids
           </span>
         </Link>
 

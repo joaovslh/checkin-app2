@@ -227,7 +227,7 @@ function Cadastro() {
                 <a href="#" className="font-medium text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground">
                   termos de uso
                 </a>{" "}
-                do Sela.
+                do Virtude Kids.
               </p>
             </div>
           </form>
