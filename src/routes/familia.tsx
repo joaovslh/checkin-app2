@@ -11,6 +11,7 @@ export const Route = createFileRoute("/familia")({
 type Filho = {
   id: string;
   nome: string;
+  salaId: string | null;
   salaNome: string | null;
 };
 
@@ -23,6 +24,16 @@ type Chamada = {
   id: string;
   abertaEm: string;
 } | null;
+
+type AulaSemana = {
+  id: string;
+  data: string;
+  tema: string | null;
+  resumo: string;
+  leituraSugerida: string | null;
+  atividadeSugerida: string | null;
+  fotoUrl: string | null;
+};
 
 function initials(nome: string) {
   const parts = nome.trim().split(/\s+/);
@@ -42,6 +53,7 @@ function Familia() {
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusCheckin>(null);
   const [chamada, setChamada] = useState<Chamada>(null);
+  const [aulas, setAulas] = useState<AulaSemana[]>([]);
   const [carregando, setCarregando] = useState(true);
 
   // Carrega os filhos do responsável logado (RLS já filtra sozinho)
@@ -49,12 +61,13 @@ function Familia() {
     async function carregarFilhos() {
       const { data } = await supabase
         .from("kids_criancas")
-        .select("id, nome, kids_salas(nome)")
+        .select("id, nome, sala_id, kids_salas(nome)")
         .order("nome", { ascending: true });
 
       const lista: Filho[] = (data ?? []).map((c: any) => ({
         id: c.id,
         nome: c.nome,
+        salaId: c.sala_id,
         salaNome: c.kids_salas?.nome ?? null,
       }));
 
@@ -109,6 +122,67 @@ function Familia() {
       supabase.removeChannel(canal);
     };
   }, [selecionadoId]);
+
+  // Busca o conteúdo da turma (últimas 2 semanas) + assina Realtime
+  const filhoSelecionadoParaSala = filhos.find((f) => f.id === selecionadoId);
+  const salaIdAtual = filhoSelecionadoParaSala?.salaId ?? null;
+
+  useEffect(() => {
+    if (!salaIdAtual) {
+      setAulas([]);
+      return;
+    }
+
+    async function carregarAulas() {
+      const duasSemanasAtras = new Date();
+      duasSemanasAtras.setDate(duasSemanasAtras.getDate() - 14);
+      const limite = duasSemanasAtras.toISOString().slice(0, 10);
+
+      const { data } = await supabase
+        .from("kids_relatorios_aula")
+        .select("id, data, tema, resumo, leitura_sugerida, atividade_sugerida, foto_path")
+        .eq("sala_id", salaIdAtual)
+        .is("crianca_id", null)
+        .gte("data", limite)
+        .order("data", { ascending: false });
+
+      const lista: AulaSemana[] = [];
+      for (const r of data ?? []) {
+        let fotoUrl: string | null = null;
+        if (r.foto_path) {
+          const { data: signed } = await supabase.storage
+            .from("relatorios-fotos")
+            .createSignedUrl(r.foto_path, 3600);
+          fotoUrl = signed?.signedUrl ?? null;
+        }
+        lista.push({
+          id: r.id,
+          data: r.data,
+          tema: r.tema,
+          resumo: r.resumo,
+          leituraSugerida: r.leitura_sugerida,
+          atividadeSugerida: r.atividade_sugerida,
+          fotoUrl,
+        });
+      }
+      setAulas(lista);
+    }
+
+    carregarAulas();
+
+    const canal = supabase
+      .channel(`aula-${salaIdAtual}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "kids_relatorios_aula", filter: `sala_id=eq.${salaIdAtual}` },
+        () => carregarAulas(),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canal);
+    };
+  }, [salaIdAtual]);
 
   async function sair() {
     await supabase.auth.signOut();
@@ -233,6 +307,68 @@ function Familia() {
                 <p className="mt-3 text-xs text-muted-foreground">
                   Essa tela atualiza sozinha assim que a equipe fizer o check-in, check-out, ou chamar você.
                 </p>
+
+                {aulas.length > 0 && (
+                  <div className="mt-10">
+                    <p className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Na sala
+                    </p>
+                    <h2
+                      className="mt-1 text-2xl font-semibold tracking-tight text-foreground"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      O que estão aprendendo
+                    </h2>
+
+                    <div className="mt-5 space-y-4">
+                      {aulas.map((a, i) => (
+                        <article
+                          key={a.id}
+                          className="overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-[var(--shadow-card)]"
+                        >
+                          {a.fotoUrl && (
+                            <img src={a.fotoUrl} alt="Foto da turma" className="h-48 w-full object-cover" />
+                          )}
+                          <div className="p-5">
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                                Semana de {new Date(a.data + "T00:00:00").toLocaleDateString("pt-BR")}
+                              </p>
+                              {i === 0 && (
+                                <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-primary">
+                                  Atual
+                                </span>
+                              )}
+                            </div>
+                            {a.tema && (
+                              <h3 className="mt-1.5 text-lg font-semibold text-foreground" style={{ fontFamily: "var(--font-display)" }}>
+                                {a.tema}
+                              </h3>
+                            )}
+                            <p className="mt-2 text-sm leading-relaxed text-foreground/85">{a.resumo}</p>
+
+                            {(a.leituraSugerida || a.atividadeSugerida) && (
+                              <div className="mt-4 space-y-2 border-t border-border pt-4">
+                                {a.leituraSugerida && (
+                                  <p className="text-sm text-muted-foreground">
+                                    <span className="font-medium text-foreground">Leitura em casa: </span>
+                                    {a.leituraSugerida}
+                                  </p>
+                                )}
+                                {a.atividadeSugerida && (
+                                  <p className="text-sm text-muted-foreground">
+                                    <span className="font-medium text-foreground">Atividade em casa: </span>
+                                    {a.atividadeSugerida}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </section>
             )}
           </>
