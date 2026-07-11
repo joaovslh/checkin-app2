@@ -586,44 +586,60 @@ function EquipeCadastro() {
               Nenhuma criança cadastrada ainda. Clique em "Novo cadastro" para começar.
             </p>
           ) : (
-            <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-              {criancas.map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => abrirEdicao(c)}
-                    className="w-full rounded-2xl border border-border bg-surface-elevated p-4 text-left shadow-[var(--shadow-card)] transition hover:border-foreground/20 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div
-                        aria-hidden
-                        className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-primary"
-                      >
-                        {initials(c.nome)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground">{c.nome}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {c.kids_salas?.nome ?? "Sem sala"} · {idadeEmAnos(c.data_nascimento)} · resp: {c.kids_responsaveis?.nome ?? "—"}
-                        </p>
-                      </div>
-                      <span className="text-xs font-medium text-muted-foreground">Editar</span>
-                    </div>
-                    {c.alergias && c.alergias.length > 0 && (
-                      <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emergency-border bg-emergency-surface px-2 py-0.5 text-[11px] font-medium text-foreground">
-                        Alergia: {c.alergias.join(", ")}
-                      </span>
-                    )}
-                    <div className="mt-3">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                        <span className="h-1.5 w-1.5 rounded-full bg-foreground/20" />
-                        Reconhecimento facial — fase futura
+            <div className="mt-4 space-y-8">
+              {salas
+                .map((s) => ({ sala: s, itens: criancas.filter((c) => c.sala_id === s.id) }))
+                .concat([{ sala: { id: "sem-sala", nome: "Sem sala", faixa_etaria_min: null, faixa_etaria_max: null }, itens: criancas.filter((c) => !c.sala_id) }])
+                .filter((g) => g.itens.length > 0)
+                .map((grupo) => (
+                  <div key={grupo.sala.id}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-foreground">{grupo.sala.nome}</h3>
+                      <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {grupo.itens.length}
                       </span>
                     </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
+                    <ul className="grid gap-3 sm:grid-cols-2">
+                      {grupo.itens.map((c) => (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            onClick={() => abrirEdicao(c)}
+                            className="w-full rounded-2xl border border-border bg-surface-elevated p-4 text-left shadow-[var(--shadow-card)] transition hover:border-foreground/20 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div
+                                aria-hidden
+                                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-primary"
+                              >
+                                {initials(c.nome)}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-foreground">{c.nome}</p>
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {idadeEmAnos(c.data_nascimento)} · resp: {c.kids_responsaveis?.nome ?? "—"}
+                                </p>
+                              </div>
+                              <span className="text-xs font-medium text-muted-foreground">Editar</span>
+                            </div>
+                            {c.alergias && c.alergias.length > 0 && (
+                              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emergency-border bg-emergency-surface px-2 py-0.5 text-[11px] font-medium text-foreground">
+                                Alergia: {c.alergias.join(", ")}
+                              </span>
+                            )}
+                            <div className="mt-3">
+                              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                                <span className="h-1.5 w-1.5 rounded-full bg-foreground/20" />
+                                Reconhecimento facial — fase futura
+                              </span>
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+            </div>
           )}
         </section>
       </main>

@@ -22,6 +22,7 @@ type CheckinRow = {
   entrada_em: string;
   saida_em: string | null;
   nome: string;
+  sala: string;
 };
 
 type ChamadaRow = {
@@ -51,7 +52,22 @@ function encontrarCulto(iso: string): Culto | null {
   const d = new Date(iso);
   const diaSemana = d.getDay();
   const horarios = HORARIOS_CULTO[diaSemana];
-  if (!horarios || horarios.length === 0) return null;
+
+  const data = dataLocalStr(d);
+  const [ano, mes, dia] = data.split("-").map(Number);
+  const diaLabel = DIAS_SEMANA[new Date(ano, mes - 1, dia).getDay()];
+  const dataFormatada = `${String(dia).padStart(2, "0")}/${String(mes).padStart(2, "0")}`;
+
+  // Dia fora da grade oficial (teste, evento especial etc) — agrupa
+  // pelo dia inteiro em vez de descartar o check-in.
+  if (!horarios || horarios.length === 0) {
+    return {
+      id: `${data}_avulso`,
+      data,
+      horario: "avulso",
+      label: `${diaLabel}, ${dataFormatada} · avulso`,
+    };
+  }
 
   const minutosEntrada = d.getHours() * 60 + d.getMinutes();
   let melhor = horarios[0];
@@ -64,11 +80,6 @@ function encontrarCulto(iso: string): Culto | null {
       melhor = h;
     }
   }
-
-  const data = dataLocalStr(d);
-  const [ano, mes, dia] = data.split("-").map(Number);
-  const diaLabel = DIAS_SEMANA[new Date(ano, mes - 1, dia).getDay()];
-  const dataFormatada = `${String(dia).padStart(2, "0")}/${String(mes).padStart(2, "0")}`;
 
   return {
     id: `${data}_${melhor}`,
@@ -104,7 +115,7 @@ function Relatorios() {
       const [checkinsRes, chamadasRes] = await Promise.all([
         supabase
           .from("kids_checkins")
-          .select("id, crianca_id, entrada_em, saida_em, kids_criancas(nome)")
+          .select("id, crianca_id, entrada_em, saida_em, kids_criancas(nome, kids_salas(nome))")
           .order("entrada_em", { ascending: false }),
         supabase.from("kids_chamadas").select("crianca_id, aberta_em"),
       ]);
@@ -122,6 +133,7 @@ function Relatorios() {
           entrada_em: c.entrada_em,
           saida_em: c.saida_em,
           nome: c.kids_criancas?.nome ?? "—",
+          sala: c.kids_criancas?.kids_salas?.nome ?? "Sem sala",
         })),
       );
       setChamadas(
@@ -161,13 +173,25 @@ function Relatorios() {
         return {
           id: c.id,
           nome: c.nome,
+          sala: c.sala,
           entrada: horaLocalStr(entradaD),
           saida: c.saida_em ? horaLocalStr(new Date(c.saida_em)) : null,
           emergencia: teveEmergencia,
         };
       })
-      .sort((a, b) => a.nome.localeCompare(b.nome));
+      .sort((a, b) => a.sala.localeCompare(b.sala) || a.nome.localeCompare(b.nome));
   }, [cultoSelecionado, checkins, chamadas]);
+
+  const detalheCultoPorSala = useMemo(() => {
+    const grupos = new Map<string, typeof detalheCulto>();
+    for (const item of detalheCulto) {
+      const lista = grupos.get(item.sala) ?? [];
+      lista.push(item);
+      grupos.set(item.sala, lista);
+    }
+    return Array.from(grupos.entries()).map(([sala, itens]) => ({ sala, itens }));
+  }, [detalheCulto]);
+
 
   // ---------- Agrupamento por mês ----------
   const meses = useMemo(() => {
@@ -314,38 +338,50 @@ function Relatorios() {
               ))}
             </aside>
 
-            <section className="rounded-2xl border border-border bg-surface-elevated shadow-[var(--shadow-card)]">
+            <section className="space-y-5">
               {detalheCulto.length === 0 ? (
-                <p className="p-6 text-sm text-muted-foreground">Nenhum check-in nesse culto.</p>
+                <div className="rounded-2xl border border-border bg-surface-elevated p-6 shadow-[var(--shadow-card)]">
+                  <p className="text-sm text-muted-foreground">Nenhum check-in nesse culto.</p>
+                </div>
               ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs uppercase tracking-[0.08em] text-muted-foreground">
-                      <th className="px-5 py-3 font-medium">Criança</th>
-                      <th className="px-5 py-3 font-medium">Entrada</th>
-                      <th className="px-5 py-3 font-medium">Saída</th>
-                      <th className="px-5 py-3 font-medium">Emergência</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detalheCulto.map((c) => (
-                      <tr key={c.id} className="border-b border-border last:border-0">
-                        <td className="px-5 py-3 font-medium text-foreground">{c.nome}</td>
-                        <td className="px-5 py-3 text-muted-foreground">{c.entrada}</td>
-                        <td className="px-5 py-3 text-muted-foreground">{c.saida ?? "Ainda na sala"}</td>
-                        <td className="px-5 py-3">
-                          {c.emergencia ? (
-                            <span className="inline-flex items-center gap-1.5 rounded-full border border-emergency-border bg-emergency-surface px-2 py-0.5 text-xs font-medium text-foreground">
-                              Sim
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">Não</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                detalheCultoPorSala.map((grupo) => (
+                  <div key={grupo.sala} className="overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-[var(--shadow-card)]">
+                    <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+                      <h3 className="text-sm font-semibold text-foreground">{grupo.sala}</h3>
+                      <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {grupo.itens.length}
+                      </span>
+                    </div>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border text-left text-xs uppercase tracking-[0.08em] text-muted-foreground">
+                          <th className="px-5 py-3 font-medium">Criança</th>
+                          <th className="px-5 py-3 font-medium">Entrada</th>
+                          <th className="px-5 py-3 font-medium">Saída</th>
+                          <th className="px-5 py-3 font-medium">Emergência</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {grupo.itens.map((c) => (
+                          <tr key={c.id} className="border-b border-border last:border-0">
+                            <td className="px-5 py-3 font-medium text-foreground">{c.nome}</td>
+                            <td className="px-5 py-3 text-muted-foreground">{c.entrada}</td>
+                            <td className="px-5 py-3 text-muted-foreground">{c.saida ?? "Ainda na sala"}</td>
+                            <td className="px-5 py-3">
+                              {c.emergencia ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-emergency-border bg-emergency-surface px-2 py-0.5 text-xs font-medium text-foreground">
+                                  Sim
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">Não</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))
               )}
             </section>
           </div>

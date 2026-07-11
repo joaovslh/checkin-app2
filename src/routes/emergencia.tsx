@@ -46,6 +46,7 @@ function Emergencia() {
   const [acionando, setAcionando] = useState(false);
   const [resolvendo, setResolvendo] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [ordemSalas, setOrdemSalas] = useState<Record<string, number>>({});
 
   async function carregarDados() {
     setCarregando(true);
@@ -100,7 +101,28 @@ function Emergencia() {
 
   useEffect(() => {
     carregarDados();
+    supabase
+      .from("kids_salas")
+      .select("nome")
+      .order("faixa_etaria_min", { ascending: true })
+      .then(({ data }) => {
+        const mapa: Record<string, number> = {};
+        (data ?? []).forEach((s, i) => (mapa[s.nome] = i));
+        setOrdemSalas(mapa);
+      });
   }, []);
+
+  function agruparPorSala<T extends { sala: string }>(itens: T[]): { sala: string; itens: T[] }[] {
+    const grupos = new Map<string, T[]>();
+    for (const item of itens) {
+      const lista = grupos.get(item.sala) ?? [];
+      lista.push(item);
+      grupos.set(item.sala, lista);
+    }
+    return Array.from(grupos.entries())
+      .map(([sala, itens]) => ({ sala, itens }))
+      .sort((a, b) => (ordemSalas[a.sala] ?? 99) - (ordemSalas[b.sala] ?? 99));
+  }
 
   const idsComChamadaAberta = useMemo(
     () => new Set(chamadasAbertas.map((c) => c.criancaNome)),
@@ -253,37 +275,47 @@ function Emergencia() {
             </p>
           )}
 
-          <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-            {presentes
-              .filter((p) => !idsComChamadaAberta.has(p.nome))
-              .map((p) => (
-                <li key={p.criancaId}>
-                  <button
-                    type="button"
-                    onClick={() => setSelecionada(p)}
-                    className={
-                      "flex w-full items-center gap-3 rounded-2xl border p-4 text-left shadow-[var(--shadow-card)] transition focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] " +
-                      (selecionada?.criancaId === p.criancaId
-                        ? "border-primary/40 bg-accent"
-                        : "border-border bg-surface-elevated hover:border-foreground/20")
-                    }
-                  >
-                    <div
-                      aria-hidden
-                      className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-primary"
-                    >
-                      {initials(p.nome)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-foreground">{p.nome}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {p.sala} · resp: {p.responsavelNome.split(" ")[0]}
-                      </p>
-                    </div>
-                  </button>
-                </li>
-              ))}
-          </ul>
+          <div className="mt-5 space-y-6">
+            {agruparPorSala(presentes.filter((p) => !idsComChamadaAberta.has(p.nome))).map((grupo) => (
+              <div key={grupo.sala}>
+                <div className="mb-2 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-foreground">{grupo.sala}</h3>
+                  <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    {grupo.itens.length}
+                  </span>
+                </div>
+                <ul className="grid gap-3 sm:grid-cols-2">
+                  {grupo.itens.map((p) => (
+                    <li key={p.criancaId}>
+                      <button
+                        type="button"
+                        onClick={() => setSelecionada(p)}
+                        className={
+                          "flex w-full items-center gap-3 rounded-2xl border p-4 text-left shadow-[var(--shadow-card)] transition focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] " +
+                          (selecionada?.criancaId === p.criancaId
+                            ? "border-primary/40 bg-accent"
+                            : "border-border bg-surface-elevated hover:border-foreground/20")
+                        }
+                      >
+                        <div
+                          aria-hidden
+                          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-primary"
+                        >
+                          {initials(p.nome)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">{p.nome}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            resp: {p.responsavelNome.split(" ")[0]}
+                          </p>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </section>
 
         {selecionada && (

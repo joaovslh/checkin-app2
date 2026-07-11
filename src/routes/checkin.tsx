@@ -50,6 +50,7 @@ function CheckIn() {
   const [processando, setProcessando] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmacaoCheckin, setConfirmacaoCheckin] = useState<{ nome: string; codigo: string } | null>(null);
+  const [ordemSalas, setOrdemSalas] = useState<Record<string, number>>({});
 
   async function carregarDados() {
     setCarregando(true);
@@ -98,7 +99,28 @@ function CheckIn() {
 
   useEffect(() => {
     carregarDados();
+    supabase
+      .from("kids_salas")
+      .select("nome")
+      .order("faixa_etaria_min", { ascending: true })
+      .then(({ data }) => {
+        const mapa: Record<string, number> = {};
+        (data ?? []).forEach((s, i) => (mapa[s.nome] = i));
+        setOrdemSalas(mapa);
+      });
   }, []);
+
+  function agruparPorSala<T extends { sala: string }>(itens: T[]): { sala: string; itens: T[] }[] {
+    const grupos = new Map<string, T[]>();
+    for (const item of itens) {
+      const lista = grupos.get(item.sala) ?? [];
+      lista.push(item);
+      grupos.set(item.sala, lista);
+    }
+    return Array.from(grupos.entries())
+      .map(([sala, itens]) => ({ sala, itens }))
+      .sort((a, b) => (ordemSalas[a.sala] ?? 99) - (ordemSalas[b.sala] ?? 99));
+  }
 
   const q = query.trim().toLowerCase();
 
@@ -335,31 +357,41 @@ function CheckIn() {
             </p>
           )}
 
-          <ul className="mt-4 space-y-3">
-            {presentesFiltrados.map((p) => (
-              <li
-                key={p.checkinId}
-                className="flex items-center gap-4 rounded-2xl border border-border bg-surface-elevated p-4 shadow-[var(--shadow-card)]"
-              >
-                <Avatar nome={p.nome} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-semibold text-foreground">{p.nome}</p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {p.sala} · Entrada às {p.entrada}
-                  </p>
-                  {p.alergias && p.alergias.length > 0 && <AlergiaTag texto={p.alergias.join(", ")} />}
+          <div className="mt-4 space-y-6">
+            {agruparPorSala(presentesFiltrados).map((grupo) => (
+              <div key={grupo.sala}>
+                <div className="mb-2 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-foreground">{grupo.sala}</h3>
+                  <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    {grupo.itens.length}
+                  </span>
                 </div>
-                <button
-                  type="button"
-                  disabled={processando === p.checkinId}
-                  onClick={() => fazerCheckout(p.checkinId)}
-                  className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
-                >
-                  {processando === p.checkinId ? "..." : "Check-out"}
-                </button>
-              </li>
+                <ul className="space-y-3">
+                  {grupo.itens.map((p) => (
+                    <li
+                      key={p.checkinId}
+                      className="flex items-center gap-4 rounded-2xl border border-border bg-surface-elevated p-4 shadow-[var(--shadow-card)]"
+                    >
+                      <Avatar nome={p.nome} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-base font-semibold text-foreground">{p.nome}</p>
+                        <p className="truncate text-sm text-muted-foreground">Entrada às {p.entrada}</p>
+                        {p.alergias && p.alergias.length > 0 && <AlergiaTag texto={p.alergias.join(", ")} />}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={processando === p.checkinId}
+                        onClick={() => fazerCheckout(p.checkinId)}
+                        className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
+                      >
+                        {processando === p.checkinId ? "..." : "Check-out"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         </section>
       </main>
     </div>
