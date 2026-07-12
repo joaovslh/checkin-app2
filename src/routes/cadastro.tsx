@@ -70,7 +70,7 @@ function Cadastro() {
     setTimeout(() => {
       setMostrandoBoasVindas(false);
       setConcluido(true);
-    }, 5000);
+    }, 2000);
   }
 
   if (mostrandoBoasVindas) {
@@ -92,7 +92,7 @@ function Cadastro() {
           <p className="mt-3 text-base text-muted-foreground">Preparando tudo para você...</p>
 
           <div className="mt-8 h-1.5 w-48 overflow-hidden rounded-full bg-surface-elevated">
-            <div className="h-full w-full origin-left animate-[carregar_5s_linear_forwards] bg-primary" />
+            <div className="h-full w-full origin-left animate-[carregar_2s_linear_forwards] bg-primary" />
           </div>
 
           <style>{`

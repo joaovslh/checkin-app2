@@ -65,7 +65,7 @@ function Responsavel() {
     setMostrandoBoasVindas(true);
     setTimeout(() => {
       navigate({ to: "/familia" });
-    }, 4000);
+    }, 2000);
   }
 
   if (mostrandoBoasVindas) {
@@ -87,7 +87,7 @@ function Responsavel() {
           <p className="mt-3 text-base text-muted-foreground">Preparando tudo para você...</p>
 
           <div className="mt-8 h-1.5 w-48 overflow-hidden rounded-full bg-surface-elevated">
-            <div className="h-full w-full origin-left animate-[carregarLogin_4s_linear_forwards] bg-primary" />
+            <div className="h-full w-full origin-left animate-[carregarLogin_2s_linear_forwards] bg-primary" />
           </div>
 
           <style>{`
