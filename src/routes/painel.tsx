@@ -28,13 +28,13 @@ function Painel() {
           </p>
         </div>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+        <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <HubCard
             title="Check-in"
             description="Registrar entrada e saída das crianças."
             to="/checkin"
             icon={
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 7V5a2 2 0 0 1 2-2h2" />
                 <path d="M17 3h2a2 2 0 0 1 2 2v2" />
                 <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
@@ -50,7 +50,7 @@ function Painel() {
             description="Cadastrar novas crianças e famílias."
             to="/equipe-cadastro"
             icon={
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                 <circle cx="9" cy="7" r="4" />
                 <path d="M19 8v6" />
@@ -65,7 +65,7 @@ function Painel() {
             critical
             to="/emergencia"
             icon={
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 9v4" />
                 <path d="M12 17h.01" />
                 <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
@@ -78,7 +78,7 @@ function Painel() {
             description="Acompanhar presença e indicadores."
             to="/relatorios"
             icon={
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 3v18h18" />
                 <path d="M7 15l4-4 3 3 5-6" />
               </svg>
@@ -90,7 +90,7 @@ function Painel() {
             description="Publicar leitura e atividade para os pais."
             to="/equipe-aula"
             icon={
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
               </svg>
@@ -102,7 +102,7 @@ function Painel() {
             description="Revisar cadastros novos antes de fechar."
             to="/equipe-aprovacoes"
             icon={
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 11l3 3L22 4" />
                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
               </svg>
@@ -114,7 +114,7 @@ function Painel() {
             description="Quem faz aniversário este mês."
             to="/equipe-aniversariantes"
             icon={
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" />
                 <path d="M4 11V9a2 2 0 0 1 2-2h2" />
                 <path d="M16 7h2a2 2 0 0 1 2 2v2" />
@@ -188,7 +188,7 @@ function HubCard({
   to?: string;
 }) {
   const base =
-    "group relative flex h-full flex-col justify-between gap-6 rounded-2xl border p-6 text-left shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
+    "group relative flex h-full flex-col justify-between gap-3 rounded-xl border p-4 text-left shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
 
   const tone = critical
     ? "border-foreground/15 bg-surface-elevated ring-1 ring-inset ring-foreground/5 hover:border-foreground/25"
@@ -196,11 +196,11 @@ function HubCard({
 
   const content = (
     <>
-      <div className="flex items-start justify-between">
+      <div className="flex items-center gap-3">
         <div
           aria-hidden
           className={
-            "grid h-12 w-12 place-items-center rounded-xl " +
+            "grid h-9 w-9 shrink-0 place-items-center rounded-lg " +
             (critical
               ? "bg-surface text-foreground ring-1 ring-inset ring-foreground/10"
               : "bg-accent text-primary")
@@ -208,30 +208,28 @@ function HubCard({
         >
           {icon}
         </div>
-        {critical && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-foreground/40" />
-            Função crítica
-          </span>
-        )}
-      </div>
-
-      <div>
         <h2
-          className="text-xl font-semibold text-foreground"
+          className="text-base font-semibold text-foreground"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {title}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        {critical && (
+          <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-foreground/40" />
+            Crítica
+          </span>
+        )}
       </div>
 
-      <div className="flex items-center gap-1.5 text-sm font-medium text-foreground/80 transition group-hover:text-foreground">
+      <p className="text-xs text-muted-foreground">{description}</p>
+
+      <div className="flex items-center gap-1 text-xs font-medium text-foreground/80 transition group-hover:text-foreground">
         Abrir
         <svg
           aria-hidden
           viewBox="0 0 24 24"
-          className="h-4 w-4 transition group-hover:translate-x-0.5"
+          className="h-3.5 w-3.5 transition group-hover:translate-x-0.5"
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
