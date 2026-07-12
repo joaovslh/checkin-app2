@@ -75,6 +75,7 @@ function EquipeCadastro() {
   const [excluindo, setExcluindo] = useState(false);
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [buscaResponsavel, setBuscaResponsavel] = useState("");
 
   // campos do formulário
   const [nomeCrianca, setNomeCrianca] = useState("");
@@ -579,25 +580,66 @@ function EquipeCadastro() {
             Crianças cadastradas
           </h2>
 
-          {carregando ? (
-            <p className="mt-4 text-sm text-muted-foreground">Carregando...</p>
-          ) : criancas.length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">
-              Nenhuma criança cadastrada ainda. Clique em "Novo cadastro" para começar.
-            </p>
-          ) : (
-            <div className="mt-4 space-y-8">
-              {salas
-                .map((s) => ({ sala: s, itens: criancas.filter((c) => c.sala_id === s.id) }))
-                .concat([{ sala: { id: "sem-sala", nome: "Sem sala", faixa_etaria_min: null, faixa_etaria_max: null }, itens: criancas.filter((c) => !c.sala_id) }])
-                .filter((g) => g.itens.length > 0)
-                .map((grupo) => (
-                  <div key={grupo.sala.id}>
-                    <div className="mb-2 flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-foreground">{grupo.sala.nome}</h3>
-                      <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                        {grupo.itens.length}
-                      </span>
+          <div className="relative mt-4">
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <input
+              type="search"
+              value={buscaResponsavel}
+              onChange={(e) => setBuscaResponsavel(e.target.value)}
+              placeholder="Buscar pelo nome do responsável"
+              className="h-12 w-full rounded-xl border border-border bg-surface-elevated pl-12 pr-4 text-base text-foreground shadow-[var(--shadow-soft)] placeholder:text-muted-foreground focus:outline-none focus:shadow-[var(--shadow-focus)]"
+            />
+          </div>
+
+          {(() => {
+            const termo = buscaResponsavel.trim().toLowerCase();
+            const criancasFiltradas = termo
+              ? criancas.filter((c) => (c.kids_responsaveis?.nome ?? "").toLowerCase().includes(termo))
+              : criancas;
+
+            if (carregando) {
+              return <p className="mt-4 text-sm text-muted-foreground">Carregando...</p>;
+            }
+            if (criancas.length === 0) {
+              return (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Nenhuma criança cadastrada ainda. Clique em "Novo cadastro" para começar.
+                </p>
+              );
+            }
+            if (termo && criancasFiltradas.length === 0) {
+              return (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Nenhum responsável encontrado com esse nome.
+                </p>
+              );
+            }
+
+            return (
+              <div className="mt-4 space-y-8">
+                {salas
+                  .map((s) => ({ sala: s, itens: criancasFiltradas.filter((c) => c.sala_id === s.id) }))
+                  .concat([{ sala: { id: "sem-sala", nome: "Sem sala", faixa_etaria_min: null, faixa_etaria_max: null }, itens: criancasFiltradas.filter((c) => !c.sala_id) }])
+                  .filter((g) => g.itens.length > 0)
+                  .map((grupo) => (
+                    <div key={grupo.sala.id}>
+                      <div className="mb-2 flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-foreground">{grupo.sala.nome}</h3>
+                        <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                          {grupo.itens.length}
+                        </span>
                     </div>
                     <ul className="grid gap-3 sm:grid-cols-2">
                       {grupo.itens.map((c) => (
@@ -638,9 +680,10 @@ function EquipeCadastro() {
                       ))}
                     </ul>
                   </div>
-                ))}
-            </div>
-          )}
+                  ))}
+              </div>
+            );
+          })()}
         </section>
       </main>
     </div>
