@@ -1,8 +1,31 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/")({
   component: Portal,
 });
+
+function SplashAbertura({ onFim }: { onFim: () => void }) {
+  useEffect(() => {
+    // Segurança: se o vídeo não tocar por algum motivo (autoplay
+    // bloqueado, arquivo não carregou), não trava a pessoa aqui pra sempre.
+    const timeout = setTimeout(onFim, 4000);
+    return () => clearTimeout(timeout);
+  }, [onFim]);
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background">
+      <video
+        src="/boas-vindas.mp4"
+        autoPlay
+        muted
+        playsInline
+        onEnded={onFim}
+        className="h-56 w-56 rounded-3xl object-cover shadow-[var(--shadow-card)]"
+      />
+    </div>
+  );
+}
 
 function Logo() {
   return (
@@ -25,6 +48,12 @@ function Logo() {
 }
 
 function Portal() {
+  const [mostrarSplash, setMostrarSplash] = useState(true);
+
+  if (mostrarSplash) {
+    return <SplashAbertura onFim={() => setMostrarSplash(false)} />;
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col px-6 py-12 sm:py-16">
