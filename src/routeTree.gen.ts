@@ -15,6 +15,7 @@ import { Route as PainelRouteImport } from './routes/painel'
 import { Route as FamiliaRouteImport } from './routes/familia'
 import { Route as EquipeCadastroRouteImport } from './routes/equipe-cadastro'
 import { Route as EquipeAulaRouteImport } from './routes/equipe-aula'
+import { Route as EquipeAprovacoesRouteImport } from './routes/equipe-aprovacoes'
 import { Route as EquipeRouteImport } from './routes/equipe'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as EmergenciaRouteImport } from './routes/emergencia'
@@ -50,6 +51,11 @@ const EquipeCadastroRoute = EquipeCadastroRouteImport.update({
 const EquipeAulaRoute = EquipeAulaRouteImport.update({
   id: '/equipe-aula',
   path: '/equipe-aula',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EquipeAprovacoesRoute = EquipeAprovacoesRouteImport.update({
+  id: '/equipe-aprovacoes',
+  path: '/equipe-aprovacoes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EquipeRoute = EquipeRouteImport.update({
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/emergencia': typeof EmergenciaRoute
   '/entrar': typeof EntrarRoute
   '/equipe': typeof EquipeRoute
+  '/equipe-aprovacoes': typeof EquipeAprovacoesRoute
   '/equipe-aula': typeof EquipeAulaRoute
   '/equipe-cadastro': typeof EquipeCadastroRoute
   '/familia': typeof FamiliaRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/emergencia': typeof EmergenciaRoute
   '/entrar': typeof EntrarRoute
   '/equipe': typeof EquipeRoute
+  '/equipe-aprovacoes': typeof EquipeAprovacoesRoute
   '/equipe-aula': typeof EquipeAulaRoute
   '/equipe-cadastro': typeof EquipeCadastroRoute
   '/familia': typeof FamiliaRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/emergencia': typeof EmergenciaRoute
   '/entrar': typeof EntrarRoute
   '/equipe': typeof EquipeRoute
+  '/equipe-aprovacoes': typeof EquipeAprovacoesRoute
   '/equipe-aula': typeof EquipeAulaRoute
   '/equipe-cadastro': typeof EquipeCadastroRoute
   '/familia': typeof FamiliaRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/emergencia'
     | '/entrar'
     | '/equipe'
+    | '/equipe-aprovacoes'
     | '/equipe-aula'
     | '/equipe-cadastro'
     | '/familia'
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/emergencia'
     | '/entrar'
     | '/equipe'
+    | '/equipe-aprovacoes'
     | '/equipe-aula'
     | '/equipe-cadastro'
     | '/familia'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/emergencia'
     | '/entrar'
     | '/equipe'
+    | '/equipe-aprovacoes'
     | '/equipe-aula'
     | '/equipe-cadastro'
     | '/familia'
@@ -178,6 +190,7 @@ export interface RootRouteChildren {
   EmergenciaRoute: typeof EmergenciaRoute
   EntrarRoute: typeof EntrarRoute
   EquipeRoute: typeof EquipeRoute
+  EquipeAprovacoesRoute: typeof EquipeAprovacoesRoute
   EquipeAulaRoute: typeof EquipeAulaRoute
   EquipeCadastroRoute: typeof EquipeCadastroRoute
   FamiliaRoute: typeof FamiliaRoute
@@ -228,6 +241,13 @@ declare module '@tanstack/react-router' {
       path: '/equipe-aula'
       fullPath: '/equipe-aula'
       preLoaderRoute: typeof EquipeAulaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/equipe-aprovacoes': {
+      id: '/equipe-aprovacoes'
+      path: '/equipe-aprovacoes'
+      fullPath: '/equipe-aprovacoes'
+      preLoaderRoute: typeof EquipeAprovacoesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/equipe': {
@@ -282,6 +302,7 @@ const rootRouteChildren: RootRouteChildren = {
   EmergenciaRoute: EmergenciaRoute,
   EntrarRoute: EntrarRoute,
   EquipeRoute: EquipeRoute,
+  EquipeAprovacoesRoute: EquipeAprovacoesRoute,
   EquipeAulaRoute: EquipeAulaRoute,
   EquipeCadastroRoute: EquipeCadastroRoute,
   FamiliaRoute: FamiliaRoute,
