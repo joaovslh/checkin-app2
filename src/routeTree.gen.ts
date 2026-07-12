@@ -16,6 +16,7 @@ import { Route as FamiliaRouteImport } from './routes/familia'
 import { Route as EquipeCadastroRouteImport } from './routes/equipe-cadastro'
 import { Route as EquipeAulaRouteImport } from './routes/equipe-aula'
 import { Route as EquipeAprovacoesRouteImport } from './routes/equipe-aprovacoes'
+import { Route as EquipeAniversariantesRouteImport } from './routes/equipe-aniversariantes'
 import { Route as EquipeRouteImport } from './routes/equipe'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as EmergenciaRouteImport } from './routes/emergencia'
@@ -58,6 +59,11 @@ const EquipeAprovacoesRoute = EquipeAprovacoesRouteImport.update({
   path: '/equipe-aprovacoes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EquipeAniversariantesRoute = EquipeAniversariantesRouteImport.update({
+  id: '/equipe-aniversariantes',
+  path: '/equipe-aniversariantes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EquipeRoute = EquipeRouteImport.update({
   id: '/equipe',
   path: '/equipe',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/emergencia': typeof EmergenciaRoute
   '/entrar': typeof EntrarRoute
   '/equipe': typeof EquipeRoute
+  '/equipe-aniversariantes': typeof EquipeAniversariantesRoute
   '/equipe-aprovacoes': typeof EquipeAprovacoesRoute
   '/equipe-aula': typeof EquipeAulaRoute
   '/equipe-cadastro': typeof EquipeCadastroRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByTo {
   '/emergencia': typeof EmergenciaRoute
   '/entrar': typeof EntrarRoute
   '/equipe': typeof EquipeRoute
+  '/equipe-aniversariantes': typeof EquipeAniversariantesRoute
   '/equipe-aprovacoes': typeof EquipeAprovacoesRoute
   '/equipe-aula': typeof EquipeAulaRoute
   '/equipe-cadastro': typeof EquipeCadastroRoute
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   '/emergencia': typeof EmergenciaRoute
   '/entrar': typeof EntrarRoute
   '/equipe': typeof EquipeRoute
+  '/equipe-aniversariantes': typeof EquipeAniversariantesRoute
   '/equipe-aprovacoes': typeof EquipeAprovacoesRoute
   '/equipe-aula': typeof EquipeAulaRoute
   '/equipe-cadastro': typeof EquipeCadastroRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/emergencia'
     | '/entrar'
     | '/equipe'
+    | '/equipe-aniversariantes'
     | '/equipe-aprovacoes'
     | '/equipe-aula'
     | '/equipe-cadastro'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/emergencia'
     | '/entrar'
     | '/equipe'
+    | '/equipe-aniversariantes'
     | '/equipe-aprovacoes'
     | '/equipe-aula'
     | '/equipe-cadastro'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/emergencia'
     | '/entrar'
     | '/equipe'
+    | '/equipe-aniversariantes'
     | '/equipe-aprovacoes'
     | '/equipe-aula'
     | '/equipe-cadastro'
@@ -190,6 +202,7 @@ export interface RootRouteChildren {
   EmergenciaRoute: typeof EmergenciaRoute
   EntrarRoute: typeof EntrarRoute
   EquipeRoute: typeof EquipeRoute
+  EquipeAniversariantesRoute: typeof EquipeAniversariantesRoute
   EquipeAprovacoesRoute: typeof EquipeAprovacoesRoute
   EquipeAulaRoute: typeof EquipeAulaRoute
   EquipeCadastroRoute: typeof EquipeCadastroRoute
@@ -250,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EquipeAprovacoesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/equipe-aniversariantes': {
+      id: '/equipe-aniversariantes'
+      path: '/equipe-aniversariantes'
+      fullPath: '/equipe-aniversariantes'
+      preLoaderRoute: typeof EquipeAniversariantesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/equipe': {
       id: '/equipe'
       path: '/equipe'
@@ -302,6 +322,7 @@ const rootRouteChildren: RootRouteChildren = {
   EmergenciaRoute: EmergenciaRoute,
   EntrarRoute: EntrarRoute,
   EquipeRoute: EquipeRoute,
+  EquipeAniversariantesRoute: EquipeAniversariantesRoute,
   EquipeAprovacoesRoute: EquipeAprovacoesRoute,
   EquipeAulaRoute: EquipeAulaRoute,
   EquipeCadastroRoute: EquipeCadastroRoute,
