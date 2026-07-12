@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { IGREJA_ID, supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/cadastro")({
@@ -15,6 +15,7 @@ function Cadastro() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [concluido, setConcluido] = useState(false);
+  const [mostrandoBoasVindas, setMostrandoBoasVindas] = useState(false);
 
   function formatBR(value: string) {
     const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -65,7 +66,44 @@ function Cadastro() {
       return;
     }
 
-    setConcluido(true);
+    setMostrandoBoasVindas(true);
+    setTimeout(() => {
+      setMostrandoBoasVindas(false);
+      setConcluido(true);
+    }, 5000);
+  }
+
+  if (mostrandoBoasVindas) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col items-center justify-center px-6 py-8 text-center">
+          <img
+            src="/logo-mascote.png"
+            alt=""
+            aria-hidden
+            className="h-24 w-24 object-contain animate-[bounce_1.6s_ease-in-out_infinite]"
+          />
+          <h1
+            className="mt-6 text-3xl font-semibold leading-[1.15] tracking-tight text-foreground"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Seja bem-vindo(a), {nomeResponsavel.split(" ")[0]}!
+          </h1>
+          <p className="mt-3 text-base text-muted-foreground">Preparando tudo para você...</p>
+
+          <div className="mt-8 h-1.5 w-48 overflow-hidden rounded-full bg-surface-elevated">
+            <div className="h-full w-full origin-left animate-[carregar_5s_linear_forwards] bg-primary" />
+          </div>
+
+          <style>{`
+            @keyframes carregar {
+              from { transform: scaleX(0); }
+              to { transform: scaleX(1); }
+            }
+          `}</style>
+        </div>
+      </div>
+    );
   }
 
   if (concluido) {

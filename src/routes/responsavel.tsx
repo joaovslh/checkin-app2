@@ -13,6 +13,8 @@ function Responsavel() {
   const [sobrenome, setSobrenome] = useState("");
   const [entrando, setEntrando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [mostrandoBoasVindas, setMostrandoBoasVindas] = useState(false);
+  const [nomeParaSaudacao, setNomeParaSaudacao] = useState("");
 
   function formatBR(value: string) {
     const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -59,7 +61,44 @@ function Responsavel() {
     }
 
     registrarMomentoDoLogin();
-    navigate({ to: "/familia" });
+    setNomeParaSaudacao(data.nome ?? "");
+    setMostrandoBoasVindas(true);
+    setTimeout(() => {
+      navigate({ to: "/familia" });
+    }, 4000);
+  }
+
+  if (mostrandoBoasVindas) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col items-center justify-center px-6 py-8 text-center">
+          <img
+            src="/logo-mascote.png"
+            alt=""
+            aria-hidden
+            className="h-24 w-24 object-contain animate-[bounce_1.6s_ease-in-out_infinite]"
+          />
+          <h1
+            className="mt-6 text-3xl font-semibold leading-[1.15] tracking-tight text-foreground"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Seja bem-vindo(a), {nomeParaSaudacao.split(" ")[0] || "de volta"}!
+          </h1>
+          <p className="mt-3 text-base text-muted-foreground">Preparando tudo para você...</p>
+
+          <div className="mt-8 h-1.5 w-48 overflow-hidden rounded-full bg-surface-elevated">
+            <div className="h-full w-full origin-left animate-[carregarLogin_4s_linear_forwards] bg-primary" />
+          </div>
+
+          <style>{`
+            @keyframes carregarLogin {
+              from { transform: scaleX(0); }
+              to { transform: scaleX(1); }
+            }
+          `}</style>
+        </div>
+      </div>
+    );
   }
 
   return (
