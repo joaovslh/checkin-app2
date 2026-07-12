@@ -23,6 +23,9 @@ type Crianca = {
   observacoes: string | null;
   sala_id: string | null;
   responsavel_principal_id: string;
+  neurodivergencia: boolean;
+  necessidade_especial: boolean;
+  status_aprovacao: string;
   kids_salas: { nome: string } | null;
   kids_responsaveis: { id: string; nome: string; telefone: string } | null;
 };
@@ -85,6 +88,8 @@ function EquipeCadastro() {
   const [nomeResponsavel, setNomeResponsavel] = useState("");
   const [telefoneResponsavel, setTelefoneResponsavel] = useState("");
   const [alergias, setAlergias] = useState("");
+  const [neurodivergencia, setNeurodivergencia] = useState(false);
+  const [necessidadeEspecial, setNecessidadeEspecial] = useState(false);
   const [observacoes, setObservacoes] = useState("");
 
   async function carregarDados() {
@@ -94,7 +99,7 @@ function EquipeCadastro() {
       supabase.from("kids_salas").select("id, nome, faixa_etaria_min, faixa_etaria_max").order("faixa_etaria_min", { ascending: true }),
       supabase
         .from("kids_criancas")
-        .select("id, nome, data_nascimento, alergias, observacoes, sala_id, responsavel_principal_id, kids_salas(nome), kids_responsaveis(id, nome, telefone)")
+        .select("id, nome, data_nascimento, alergias, observacoes, sala_id, responsavel_principal_id, neurodivergencia, necessidade_especial, status_aprovacao, kids_salas(nome), kids_responsaveis(id, nome, telefone)")
         .order("nome", { ascending: true }),
     ]);
 
@@ -144,6 +149,8 @@ function EquipeCadastro() {
     setNomeResponsavel("");
     setTelefoneResponsavel("");
     setAlergias("");
+    setNeurodivergencia(false);
+    setNecessidadeEspecial(false);
     setObservacoes("");
     setAutorizados([{ nome: "", parentesco: "" }]);
     setEditandoId(null);
@@ -165,6 +172,8 @@ function EquipeCadastro() {
     // remove o +55 pra exibir só o número no campo
     setTelefoneResponsavel((c.kids_responsaveis?.telefone ?? "").replace(/^\+55/, ""));
     setAlergias((c.alergias ?? []).join(", "));
+    setNeurodivergencia(c.neurodivergencia ?? false);
+    setNecessidadeEspecial(c.necessidade_especial ?? false);
     setObservacoes(c.observacoes ?? "");
     setMostrarForm(true);
 
@@ -206,6 +215,8 @@ function EquipeCadastro() {
             sala_id: salaId || null,
             alergias: alergiasArray,
             observacoes: observacoes || null,
+            neurodivergencia,
+            necessidade_especial: necessidadeEspecial,
           })
           .eq("id", editandoId);
 
@@ -278,6 +289,8 @@ function EquipeCadastro() {
             data_nascimento: dataNascimento,
             alergias: alergiasArray,
             observacoes: observacoes || null,
+            neurodivergencia,
+            necessidade_especial: necessidadeEspecial,
           })
           .select("id")
           .single();
@@ -466,7 +479,7 @@ function EquipeCadastro() {
                     />
                   </div>
                 </Field>
-                <Field label="Alergias" aside={<span className="text-xs font-medium text-muted-foreground">Opcional</span>}>
+                <Field label="Alguma alergia ou restrição?" aside={<span className="text-xs font-medium text-muted-foreground">Opcional</span>}>
                   <TextInput
                     value={alergias}
                     onChange={(e) => setAlergias(e.target.value)}
@@ -474,6 +487,23 @@ function EquipeCadastro() {
                   />
                 </Field>
               </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <PerguntaSimNao
+                  label="A criança tem alguma neurodivergência?"
+                  valor={neurodivergencia}
+                  onChange={setNeurodivergencia}
+                />
+                <PerguntaSimNao
+                  label="A criança tem alguma necessidade especial?"
+                  valor={necessidadeEspecial}
+                  onChange={setNecessidadeEspecial}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Essas respostas ajudam nossa equipe a acolher melhor — não são obrigatórias e ficam
+                visíveis só para a equipe responsável.
+              </p>
 
               <Field label="Observações" aside={<span className="text-xs font-medium text-muted-foreground">Opcional</span>}>
                 <textarea
@@ -720,5 +750,47 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
         className
       }
     />
+  );
+}
+
+function PerguntaSimNao({
+  label,
+  valor,
+  onChange,
+}: {
+  label: string;
+  valor: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div>
+      <span className="mb-1.5 block text-sm font-medium text-foreground">{label}</span>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => onChange(false)}
+          className={
+            "h-11 flex-1 rounded-md border text-sm font-medium transition " +
+            (!valor
+              ? "border-primary/40 bg-accent text-primary"
+              : "border-border bg-surface-elevated text-muted-foreground hover:bg-secondary")
+          }
+        >
+          Não
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(true)}
+          className={
+            "h-11 flex-1 rounded-md border text-sm font-medium transition " +
+            (valor
+              ? "border-primary/40 bg-accent text-primary"
+              : "border-border bg-surface-elevated text-muted-foreground hover:bg-secondary")
+          }
+        >
+          Sim
+        </button>
+      </div>
+    </div>
   );
 }

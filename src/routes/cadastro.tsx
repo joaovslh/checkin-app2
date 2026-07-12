@@ -12,6 +12,8 @@ function Cadastro() {
   const [dataNascimento, setDataNascimento] = useState("");
   const [nomeResponsavel, setNomeResponsavel] = useState("");
   const [alergia, setAlergia] = useState("");
+  const [neurodivergencia, setNeurodivergencia] = useState(false);
+  const [necessidadeEspecial, setNecessidadeEspecial] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [concluido, setConcluido] = useState(false);
@@ -53,6 +55,8 @@ function Cadastro() {
           nome: nomeCrianca,
           data_nascimento: dataNascimento,
           alergias: alergia.trim() ? [alergia.trim()] : [],
+          neurodivergencia,
+          necessidade_especial: necessidadeEspecial,
         },
         consentimento_termos_gerais: true,
         consentimento_biometria: false,
@@ -239,7 +243,7 @@ function Cadastro() {
             </Field>
 
             <Field
-              label="Alguma alergia?"
+              label="Alguma alergia ou restrição?"
               htmlFor="allergy"
               aside={<span className="text-xs font-medium text-muted-foreground">Opcional</span>}
             >
@@ -251,6 +255,22 @@ function Cadastro() {
                 autoComplete="off"
               />
             </Field>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <PerguntaSimNao
+                label="A criança tem alguma neurodivergência?"
+                valor={neurodivergencia}
+                onChange={setNeurodivergencia}
+              />
+              <PerguntaSimNao
+                label="A criança tem alguma necessidade especial?"
+                valor={necessidadeEspecial}
+                onChange={setNecessidadeEspecial}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Essas respostas ajudam nossa equipe a acolher melhor — não são obrigatórias.
+            </p>
 
             <div className="pt-2">
               <button
@@ -311,5 +331,47 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
         className
       }
     />
+  );
+}
+
+function PerguntaSimNao({
+  label,
+  valor,
+  onChange,
+}: {
+  label: string;
+  valor: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div>
+      <span className="mb-1.5 block text-sm font-medium text-foreground">{label}</span>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => onChange(false)}
+          className={
+            "h-11 flex-1 rounded-md border text-sm font-medium transition " +
+            (!valor
+              ? "border-primary/40 bg-accent text-primary"
+              : "border-border bg-surface-elevated text-muted-foreground hover:bg-secondary")
+          }
+        >
+          Não
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(true)}
+          className={
+            "h-11 flex-1 rounded-md border text-sm font-medium transition " +
+            (valor
+              ? "border-primary/40 bg-accent text-primary"
+              : "border-border bg-surface-elevated text-muted-foreground hover:bg-secondary")
+          }
+        >
+          Sim
+        </button>
+      </div>
+    </div>
   );
 }
