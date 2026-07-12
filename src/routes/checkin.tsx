@@ -25,13 +25,19 @@ type Presente = {
   autorizados: Autorizado[];
 };
 
-type Cadastrada = {
+type FilhoDisponivel = {
   id: string;
   nome: string;
-  sala: string;
   salaId: string | null;
-  responsavel: string;
+  salaNome: string;
   alergias: string[] | null;
+};
+
+type ResponsavelComFilhos = {
+  id: string;
+  nome: string;
+  telefone: string | null;
+  filhos: FilhoDisponivel[];
 };
 
 function initials(nome: string) {
@@ -53,11 +59,12 @@ function gerarCodigoPareado() {
 function CheckIn() {
   const [query, setQuery] = useState("");
   const [presentes, setPresentes] = useState<Presente[]>([]);
-  const [cadastroGeral, setCadastroGeral] = useState<Cadastrada[]>([]);
+  const [responsaveis, setResponsaveis] = useState<ResponsavelComFilhos[]>([]);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [carregando, setCarregando] = useState(true);
-  const [processando, setProcessando] = useState<string | null>(null);
+  const [processando, setProcessando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [confirmacaoCheckin, setConfirmacaoCheckin] = useState<{ nome: string; codigo: string } | null>(null);
+  const [confirmacoes, setConfirmacoes] = useState<{ nome: string; codigo: string }[]>([]);
   const [ordemSalas, setOrdemSalas] = useState<Record<string, number>>({});
   const [expandido, setExpandido] = useState<string | null>(null);
 
@@ -65,7 +72,7 @@ function CheckIn() {
     setCarregando(true);
     setErro(null);
 
-    const [presentesRes, criancasRes] = await Promise.all([
+    const [presentesRes, responsaveisRes] = await Promise.all([
       supabase
         .from("kids_checkins")
         .select(
@@ -74,12 +81,14 @@ function CheckIn() {
         .is("saida_em", null)
         .order("entrada_em", { ascending: false }),
       supabase
-        .from("kids_criancas")
-        .select("id, nome, alergias, sala_id, kids_salas(nome), kids_responsaveis(nome)")
+        .from("kids_responsaveis")
+        .select(
+          "id, nome, telefone, kids_criancas(id, nome, sala_id, alergias, kids_salas(nome))",
+        )
         .order("nome", { ascending: true }),
     ]);
 
-    if (presentesRes.error || criancasRes.error) {
+    if (presentesRes.error || responsaveisRes.error) {
       setErro("Não foi possível carregar os dados de check-in.");
       setCarregando(false);
       return;
@@ -97,17 +106,21 @@ function CheckIn() {
       autorizados: c.kids_criancas?.kids_autorizacoes_retirada ?? [],
     }));
 
-    const cadastroFormatado: Cadastrada[] = (criancasRes.data ?? []).map((c: any) => ({
-      id: c.id,
-      nome: c.nome,
-      sala: c.kids_salas?.nome ?? "Sem sala",
-      salaId: c.sala_id,
-      responsavel: c.kids_responsaveis?.nome ?? "—",
-      alergias: c.alergias,
+    const responsaveisFormatados: ResponsavelComFilhos[] = (responsaveisRes.data ?? []).map((r: any) => ({
+      id: r.id,
+      nome: r.nome,
+      telefone: r.telefone ?? null,
+      filhos: (r.kids_criancas ?? []).map((f: any) => ({
+        id: f.id,
+        nome: f.nome,
+        salaId: f.sala_id,
+        salaNome: f.kids_salas?.nome ?? "Sem sala",
+        alergias: f.alergias,
+      })),
     }));
 
     setPresentes(presentesFormatados);
-    setCadastroGeral(cadastroFormatado);
+    setResponsaveis(responsaveisFormatados);
     setCarregando(false);
   }
 
@@ -140,46 +153,68 @@ function CheckIn() {
 
   const presentesFiltrados = useMemo(() => {
     if (!q) return presentes;
-    return presentes.filter((p) => p.nome.toLowerCase().includes(q));
+    return presentes.filter((p) => p.nome.toLowerCase().includes(q) || p.responsavelNome.toLowerCase().includes(q));
   }, [q, presentes]);
 
   const idsPresentes = new Set(presentes.map((p) => p.criancaId));
 
-  const cadastroSugestoes = useMemo(() => {
+  // Busca por nome do RESPONSÁVEL — mostra ele e todos os filhos que
+  // ainda não fizeram check-in hoje, pra seleção múltipla
+  const responsaveisEncontrados = useMemo(() => {
     if (!q) return [];
-    return cadastroGeral.filter(
-      (c) => c.nome.toLowerCase().includes(q) && !idsPresentes.has(c.id),
-    );
-  }, [q, cadastroGeral, presentes]);
+    return responsaveis
+      .filter((r) => r.nome.toLowerCase().includes(q))
+      .map((r) => ({
+        ...r,
+        filhos: r.filhos.filter((f) => !idsPresentes.has(f.id)),
+      }))
+      .filter((r) => r.filhos.length > 0);
+  }, [q, responsaveis, presentes]);
 
-  const nadaEncontrado = q.length > 0 && presentesFiltrados.length === 0;
+  const nadaEncontrado = q.length > 0 && presentesFiltrados.length === 0 && responsaveisEncontrados.length === 0;
 
-  async function fazerCheckin(c: Cadastrada) {
-    setProcessando(c.id);
+  function alternarSelecao(filhoId: string) {
+    setSelecionados((prev) => {
+      const novo = new Set(prev);
+      if (novo.has(filhoId)) novo.delete(filhoId);
+      else novo.add(filhoId);
+      return novo;
+    });
+  }
+
+  async function confirmarCheckins() {
+    const todosFilhos = responsaveisEncontrados.flatMap((r) => r.filhos);
+    const filhosSelecionados = todosFilhos.filter((f) => selecionados.has(f.id));
+    if (filhosSelecionados.length === 0) return;
+
+    setProcessando(true);
     setErro(null);
 
-    const codigo = gerarCodigoPareado();
-
-    const { error } = await supabase.from("kids_checkins").insert({
+    const novosRegistros = filhosSelecionados.map((f) => ({
       igreja_id: IGREJA_ID,
-      crianca_id: c.id,
-      sala_id: c.salaId,
-      codigo_pareado: codigo,
-      metodo_entrada: "manual",
-    });
+      crianca_id: f.id,
+      sala_id: f.salaId,
+      codigo_pareado: gerarCodigoPareado(),
+      metodo_entrada: "manual" as const,
+    }));
+
+    const { error } = await supabase.from("kids_checkins").insert(novosRegistros);
 
     if (error) {
       setErro("Não foi possível fazer o check-in. Tente novamente.");
     } else {
+      setConfirmacoes(
+        filhosSelecionados.map((f, i) => ({ nome: f.nome, codigo: novosRegistros[i].codigo_pareado })),
+      );
       setQuery("");
-      setConfirmacaoCheckin({ nome: c.nome, codigo });
+      setSelecionados(new Set());
       await carregarDados();
     }
-    setProcessando(null);
+    setProcessando(false);
   }
 
   async function fazerCheckout(checkinId: string) {
-    setProcessando(checkinId);
+    setProcessando(true);
     setErro(null);
 
     const { error } = await supabase
@@ -192,7 +227,7 @@ function CheckIn() {
     } else {
       await carregarDados();
     }
-    setProcessando(null);
+    setProcessando(false);
   }
 
   return (
@@ -234,27 +269,16 @@ function CheckIn() {
           </div>
         )}
 
-        {confirmacaoCheckin && (
-          <div className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-accent px-5 py-4 shadow-[var(--shadow-card)]">
-            <div>
+        {confirmacoes.length > 0 && (
+          <div className="mb-6 rounded-2xl border border-primary/30 bg-accent px-5 py-4 shadow-[var(--shadow-card)]">
+            <div className="flex items-start justify-between gap-4">
               <p className="text-sm font-medium text-foreground">
-                Check-in de <span className="font-semibold">{confirmacaoCheckin.nome}</span> confirmado
+                Check-in confirmado — anote ou informe os códigos, serão necessários na saída
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Anote ou informe este código ao responsável — ele será necessário na saída
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span
-                className="rounded-lg bg-primary px-4 py-2 text-2xl font-bold tracking-[0.2em] text-primary-foreground"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {confirmacaoCheckin.codigo}
-              </span>
               <button
                 type="button"
-                onClick={() => setConfirmacaoCheckin(null)}
-                className="text-muted-foreground transition hover:text-foreground"
+                onClick={() => setConfirmacoes([])}
+                className="shrink-0 text-muted-foreground transition hover:text-foreground"
                 aria-label="Fechar"
               >
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -262,6 +286,19 @@ function CheckIn() {
                   <path d="M6 6l12 12" />
                 </svg>
               </button>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-3">
+              {confirmacoes.map((c, i) => (
+                <div key={i} className="flex items-center gap-2 rounded-lg bg-surface-elevated px-3 py-2 shadow-[var(--shadow-soft)]">
+                  <span className="text-sm font-medium text-foreground">{c.nome}</span>
+                  <span
+                    className="rounded-md bg-primary px-2.5 py-1 text-lg font-bold tracking-[0.15em] text-primary-foreground"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    {c.codigo}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -283,13 +320,16 @@ function CheckIn() {
           <input
             type="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar criança pelo nome"
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelecionados(new Set());
+            }}
+            placeholder="Buscar pelo nome do responsável"
             className="h-14 w-full rounded-xl border border-border bg-surface-elevated pl-12 pr-4 text-base text-foreground shadow-[var(--shadow-soft)] placeholder:text-muted-foreground focus:outline-none focus:shadow-[var(--shadow-focus)]"
           />
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          O reconhecimento facial chega em uma fase futura. Por enquanto, busque pelo nome.
+          Busque pelo nome do responsável — se houver mais de um filho, todos aparecem para seleção.
         </p>
 
         {carregando && <p className="mt-8 text-sm text-muted-foreground">Carregando...</p>}
@@ -298,57 +338,92 @@ function CheckIn() {
           <section className="mt-8">
             <div className="rounded-xl border border-dashed border-border bg-surface p-5">
               <p className="text-sm font-medium text-foreground">
-                Nenhuma criança presente com esse nome.
+                Nenhum responsável encontrado com esse nome.
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {cadastroSugestoes.length > 0
-                  ? "Encontramos no cadastro geral. Confirme a entrada:"
-                  : "Também não encontramos no cadastro geral. Verifique o nome ou faça um cadastro rápido."}
+                Verifique o nome ou faça um cadastro rápido.
               </p>
             </div>
+            <div className="mt-4">
+              <Link
+                to="/equipe-cadastro"
+                className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface-elevated px-4 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+              >
+                Fazer cadastro rápido
+              </Link>
+            </div>
+          </section>
+        )}
 
-            {cadastroSugestoes.length > 0 && (
-              <ul className="mt-4 space-y-3">
-                {cadastroSugestoes.map((c) => (
-                  <li
-                    key={c.id}
-                    className="flex items-center gap-4 rounded-2xl border border-border bg-surface-elevated p-4 shadow-[var(--shadow-card)]"
-                  >
-                    <Avatar nome={c.nome} muted />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-base font-semibold text-foreground">{c.nome}</p>
-                      <p className="truncate text-sm text-muted-foreground">
-                        {c.sala} · Responsável: {c.responsavel}
-                      </p>
-                      {c.alergias && c.alergias.length > 0 && <AlergiaTag texto={c.alergias.join(", ")} />}
-                    </div>
-                    <button
-                      type="button"
-                      disabled={processando === c.id}
-                      onClick={() => fazerCheckin(c)}
-                      className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition hover:opacity-95 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
-                    >
-                      {processando === c.id ? "Confirmando..." : "Confirmar entrada"}
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14" />
-                        <path d="M13 6l6 6-6 6" />
-                      </svg>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+        {!carregando && responsaveisEncontrados.length > 0 && (
+          <section className="mt-8">
+            <p className="text-sm font-medium text-foreground">Selecione quem vai fazer check-in:</p>
+            <div className="mt-3 space-y-3">
+              {responsaveisEncontrados.map((r) => (
+                <div key={r.id} className="rounded-2xl border border-border bg-surface-elevated p-4 shadow-[var(--shadow-card)]">
+                  <p className="text-sm font-semibold text-foreground">
+                    Responsável: {r.nome}
+                    {r.telefone && <span className="ml-2 font-normal text-muted-foreground">· {r.telefone}</span>}
+                  </p>
+                  <ul className="mt-3 space-y-2">
+                    {r.filhos.map((f) => {
+                      const marcado = selecionados.has(f.id);
+                      return (
+                        <li key={f.id}>
+                          <button
+                            type="button"
+                            onClick={() => alternarSelecao(f.id)}
+                            className={
+                              "flex w-full items-center gap-3 rounded-xl border p-3 text-left transition " +
+                              (marcado
+                                ? "border-primary/40 bg-accent"
+                                : "border-border bg-surface hover:border-foreground/20")
+                            }
+                          >
+                            <span
+                              className={
+                                "grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 " +
+                                (marcado ? "border-primary bg-primary" : "border-border bg-surface-elevated")
+                              }
+                              aria-hidden
+                            >
+                              {marcado && (
+                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M20 6 9 17l-5-5" />
+                                </svg>
+                              )}
+                            </span>
+                            <Avatar nome={f.nome} />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-foreground">{f.nome}</p>
+                              <p className="truncate text-xs text-muted-foreground">{f.salaNome}</p>
+                              {f.alergias && f.alergias.length > 0 && <AlergiaTag texto={f.alergias.join(", ")} />}
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
 
-            {cadastroSugestoes.length === 0 && (
-              <div className="mt-4">
-                <Link
-                  to="/equipe-cadastro"
-                  className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface-elevated px-4 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
-                >
-                  Fazer cadastro rápido
-                </Link>
-              </div>
-            )}
+            <button
+              type="button"
+              disabled={selecionados.size === 0 || processando}
+              onClick={confirmarCheckins}
+              className="mt-4 inline-flex h-12 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition hover:opacity-95 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
+            >
+              {processando
+                ? "Confirmando..."
+                : selecionados.size === 0
+                  ? "Selecione ao menos 1 criança"
+                  : `Confirmar entrada (${selecionados.size})`}
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14" />
+                <path d="M13 6l6 6-6 6" />
+              </svg>
+            </button>
           </section>
         )}
 
@@ -413,11 +488,11 @@ function CheckIn() {
                         </button>
                         <button
                           type="button"
-                          disabled={processando === p.checkinId}
+                          disabled={processando}
                           onClick={() => fazerCheckout(p.checkinId)}
                           className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
                         >
-                          {processando === p.checkinId ? "..." : "Check-out"}
+                          {processando ? "..." : "Check-out"}
                         </button>
                       </div>
 
