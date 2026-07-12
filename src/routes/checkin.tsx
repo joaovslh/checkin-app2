@@ -23,6 +23,7 @@ type Presente = {
   codigo: string;
   responsavelNome: string;
   autorizados: Autorizado[];
+  statusAprovacao: string;
 };
 
 type FilhoDisponivel = {
@@ -31,6 +32,7 @@ type FilhoDisponivel = {
   salaId: string | null;
   salaNome: string;
   alergias: string[] | null;
+  statusAprovacao: string;
 };
 
 type ResponsavelComFilhos = {
@@ -76,14 +78,14 @@ function CheckIn() {
       supabase
         .from("kids_checkins")
         .select(
-          "id, entrada_em, codigo_pareado, crianca_id, kids_criancas(nome, alergias, kids_salas(nome), kids_responsaveis(nome), kids_autorizacoes_retirada(nome, parentesco))",
+          "id, entrada_em, codigo_pareado, crianca_id, kids_criancas(nome, alergias, status_aprovacao, kids_salas(nome), kids_responsaveis(nome), kids_autorizacoes_retirada(nome, parentesco))",
         )
         .is("saida_em", null)
         .order("entrada_em", { ascending: false }),
       supabase
         .from("kids_responsaveis")
         .select(
-          "id, nome, telefone, kids_criancas(id, nome, sala_id, alergias, kids_salas(nome))",
+          "id, nome, telefone, kids_criancas(id, nome, sala_id, alergias, status_aprovacao, kids_salas(nome))",
         )
         .order("nome", { ascending: true }),
     ]);
@@ -104,6 +106,7 @@ function CheckIn() {
       codigo: c.codigo_pareado ?? "----",
       responsavelNome: c.kids_criancas?.kids_responsaveis?.nome ?? "—",
       autorizados: c.kids_criancas?.kids_autorizacoes_retirada ?? [],
+      statusAprovacao: c.kids_criancas?.status_aprovacao ?? "aprovado",
     }));
 
     const responsaveisFormatados: ResponsavelComFilhos[] = (responsaveisRes.data ?? []).map((r: any) => ({
@@ -116,6 +119,7 @@ function CheckIn() {
         salaId: f.sala_id,
         salaNome: f.kids_salas?.nome ?? "Sem sala",
         alergias: f.alergias,
+        statusAprovacao: f.status_aprovacao ?? "aprovado",
       })),
     }));
 
@@ -397,6 +401,7 @@ function CheckIn() {
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-semibold text-foreground">{f.nome}</p>
                               <p className="truncate text-xs text-muted-foreground">{f.salaNome}</p>
+                              {f.statusAprovacao === "pendente" && <PendenteTag />}
                               {f.alergias && f.alergias.length > 0 && <AlergiaTag texto={f.alergias.join(", ")} />}
                             </div>
                           </button>
@@ -466,6 +471,7 @@ function CheckIn() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-base font-semibold text-foreground">{p.nome}</p>
                           <p className="truncate text-sm text-muted-foreground">Entrada às {p.entrada}</p>
+                          {p.statusAprovacao === "pendente" && <PendenteTag />}
                           {p.alergias && p.alergias.length > 0 && <AlergiaTag texto={p.alergias.join(", ")} />}
                         </div>
                         <button
@@ -560,6 +566,18 @@ function Avatar({ nome, muted }: { nome: string; muted?: boolean }) {
     >
       {initials(nome)}
     </div>
+  );
+}
+
+function PendenteTag() {
+  return (
+    <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 3" />
+      </svg>
+      Aprovação pendente
+    </span>
   );
 }
 
