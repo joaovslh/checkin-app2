@@ -133,19 +133,39 @@ function Emergencia() {
     setAcionando(true);
     setErro(null);
 
-    const { error } = await supabase.from("kids_chamadas").insert({
-      igreja_id: IGREJA_ID,
-      crianca_id: p.criancaId,
-      sala_id: p.salaId,
-      status: "aberta",
-    });
+    const { data: novaChamada, error } = await supabase
+      .from("kids_chamadas")
+      .insert({
+        igreja_id: IGREJA_ID,
+        crianca_id: p.criancaId,
+        sala_id: p.salaId,
+        status: "aberta",
+      })
+      .select("id")
+      .single();
 
-    if (error) {
+    if (error || !novaChamada) {
       setErro("Não foi possível acionar a emergência. Tente novamente.");
-    } else {
-      setSelecionada(null);
-      await carregarDados();
+      setAcionando(false);
+      return;
     }
+
+    // Dispara SMS + push em paralelo — mesmo que falhem, a chamada já
+    // está registrada e visível no app/Realtime, então não bloqueia o fluxo
+    supabase.functions
+      .invoke("emergencia-notificar-sms", { body: { chamada_id: novaChamada.id } })
+      .catch(() => {
+        // silencioso — a notificação em tela via Realtime já cobre esse caso
+      });
+
+    supabase.functions
+      .invoke("enviar-push-emergencia", { body: { chamada_id: novaChamada.id } })
+      .catch(() => {
+        // silencioso — SMS + Realtime já cobrem esse caso
+      });
+
+    setSelecionada(null);
+    await carregarDados();
     setAcionando(false);
   }
 
