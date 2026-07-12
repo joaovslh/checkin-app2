@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { registrarMomentoDoLogin } from "../lib/auth-guard";
 import { IGREJA_ID, supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/responsavel")({
@@ -57,6 +58,7 @@ function Responsavel() {
       return;
     }
 
+    registrarMomentoDoLogin();
     navigate({ to: "/familia" });
   }
 

@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { registrarMomentoDoLogin } from "../lib/auth-guard";
 import { supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/equipe")({
@@ -58,6 +59,7 @@ function LoginPanel() {
       return;
     }
 
+    registrarMomentoDoLogin();
     navigate({ to: "/painel" });
   }
 
